@@ -8,9 +8,26 @@
         ],
         "requires": {},
         "hash": {
-            "sha256": "cb65967bdf3a7372749ce6144be4ee63f412aeeac624342fda3a2b58b1c43c15"
+            "sha256": "a9d29c74deeb1653df48c526a0a8ff9437eaa2c241765a6df111ef8a762e7b39"
         }
     },
     "default": {},
-    "develop": {}
+    "develop": {
+        "behave": {
+            "hash": "sha256:89238a5e4b11ff607e8ebc6b4b1fb1a0b1f3d794fba80e1fb4b6b3652979c927",
+            "version": "==1.2.5"
+        },
+        "parse": {
+            "hash": "sha256:8048dde3f5ca07ad7ac7350460952d83b63eaacecdac1b37f45fd74870d849d2",
+            "version": "==1.8.2"
+        },
+        "parse-type": {
+            "hash": "sha256:3dd0b323bafcb8c25e000ce5589042a1c99cba9c3bec77b9f591e46bc9606147",
+            "version": "==0.3.4"
+        },
+        "six": {
+            "hash": "sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1",
+            "version": "==1.10.0"
+        }
+    }
 }
