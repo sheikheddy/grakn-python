@@ -1,4 +1,4 @@
-from grakn_python import duck
+from grakn import duck
 from nose.tools import *
 import unittest
 
