@@ -6,4 +6,4 @@ test:
 	pipenv run nosetests
 
 accept:
-	pipenv run behave
+	pipenv run behave --tags=-skip
