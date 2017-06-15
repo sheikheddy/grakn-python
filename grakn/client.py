@@ -23,7 +23,7 @@ class Graph:
         :param query: the Graql query string to execute against the graph
         :return: a list of query results
 
-        :raises: GraknError
+        :raises: GraknError, requests.exceptions.ConnectionError
         """
         params = {'keyspace': self.keyspace, 'query': query,
                   'infer': False, 'materialise': False}
