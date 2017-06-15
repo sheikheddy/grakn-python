@@ -6,7 +6,6 @@ Feature: Match Queries
 		When The user issues a match query which should not have results
     	Then Return an empty response
 
-    @skip
     Scenario: Match Existent Concept
         Given A graph containing types and instances
 		When The user issues a match query which should have results
