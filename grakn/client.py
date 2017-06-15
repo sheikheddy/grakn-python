@@ -22,10 +22,23 @@ class Graph:
 
         :param query: the Graql query string to execute against the graph
         :return: a list of query results
+
+        :raises: GraknError
         """
         params = {'keyspace': self.keyspace, 'query': query,
                   'infer': False, 'materialise': False}
         headers = {'Accept': 'application/graql+json'}
         graql_url = f'{self.uri}/graph/graql'
         response = requests.get(graql_url, params, headers=headers)
-        return response.json()['response']
+
+        if response.ok:
+            return response.json()['response']
+        else:
+            raise GraknError(response.json()['exception'])
+
+
+class GraknError(Exception):
+    """An exception when executing an operation on a Grakn graph"""
+
+    def __init__(self, *args):
+        Exception.__init__(self, *args)
