@@ -1,4 +1,4 @@
-from grakn.client import Graph
+from grakn.client import Graph, GraknError
 
 from behave import *
 from behave.runner import Context
@@ -6,7 +6,6 @@ from behave.runner import Context
 import features.environment as env
 
 use_step_matcher("re")
-
 
 valid_query = 'match $x isa pokemon; limit 5;'
 invalid_query = 'select $x where $x isa pokemon;'
@@ -28,7 +27,7 @@ def step_impl(context: Context):
 def step_impl(context: Context):
     try:
         context.response = context.graph.execute(invalid_query)
-    except Exception as e:
+    except GraknError as e:
         context.error = e
 
 

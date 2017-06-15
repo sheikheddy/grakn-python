@@ -6,7 +6,6 @@ Feature: Client
 		When The user issues a valid query
     	Then Return a response
 
-    @skip
     Scenario: Issuing An invalid Query
     	Given A graph containing types and instances
 		When The user issues an invalid query
