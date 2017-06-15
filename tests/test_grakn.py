@@ -6,6 +6,7 @@ from requests import Request
 from httmock import urlmatch, response, HTTMock
 from urllib.parse import parse_qs
 from urllib.parse import SplitResult
+from requests.exceptions import ConnectionError
 
 query: str = 'match $x sub concept; limit 3;'
 
@@ -102,3 +103,7 @@ class TestExecute(unittest.TestCase):
         with self.engine:
             with self.assertRaises(GraknError, msg=error_message):
                 self.graph.execute(query)
+
+    def test_executing_a_query_without_a_server_throws_grakn_exception(self):
+        with self.assertRaises(ConnectionError):
+            self.graph.execute(query)
