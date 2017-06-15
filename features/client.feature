@@ -11,7 +11,6 @@ Feature: Client
 		When The user issues an invalid query
     	Then Return an error
 
-    @skip
     Scenario: Issuing a query with a broken connection
         Given A broken connection to the database
         When The user issues a query

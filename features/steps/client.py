@@ -18,17 +18,20 @@ def step_impl(context: Context):
     context.graph = Graph()
 
 
+@given("A broken connection to the database")
+def step_impl(context: Context):
+    context.graph = Graph('http://0.1.2.3:4567')
+
+
+@when("The user issues a query")
 @when("The user issues a valid query")
 def step_impl(context: Context):
-    context.response = context.graph.execute(valid_query)
+    env.execute_query(context, valid_query)
 
 
 @when("The user issues an invalid query")
 def step_impl(context: Context):
-    try:
-        context.response = context.graph.execute(invalid_query)
-    except GraknError as e:
-        context.error = e
+    env.execute_query(context, invalid_query)
 
 
 @then("Return a response")
@@ -41,3 +44,4 @@ def step_impl(context: Context):
 @then("Return an error")
 def step_impl(context: Context):
     assert context.error is not None
+
