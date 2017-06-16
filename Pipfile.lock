@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ee1738aa70f452ba6a2c04990c2a4c3bda5f174c69c2328ec1706bf9c9c187f8"
+            "sha256": "423c89464289a9efe8cc3d9b8d7296fbdb5c4aba3403c29d57a85a3727c8dc38"
         },
         "requires": {},
         "sources": [
@@ -13,6 +13,9 @@
     },
     "default": {},
     "develop": {
+        "appdirs": {
+            "version": "==1.4.3"
+        },
         "behave": {
             "version": "==1.2.5"
         },
@@ -38,7 +41,7 @@
             "version": "==0.3.4"
         },
         "requests": {
-            "version": "==2.17.3"
+            "version": "==2.18.1"
         },
         "six": {
             "version": "==1.10.0"
