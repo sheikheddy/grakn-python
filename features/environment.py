@@ -5,7 +5,7 @@ import os.path
 import tarfile
 import urllib.request
 import time
-from grakn import GraknError
+from grakn.client import GraknError
 from requests.exceptions import ConnectionError
 
 from behave.runner import Context
