@@ -16,5 +16,3 @@ def step_impl(context):
 @then(u'the response should be "{expected}"')
 def step_impl(context, expected):
     eq_(context.response, expected)
-
-

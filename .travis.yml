@@ -2,7 +2,11 @@ language: python
 python:
   - "3.6"
 
-install: "make"
+sudo: required
+
+install:
+  - make
+  - sudo apt-get update && sudo apt-get install oracle-java8-installer
 
 script:
   - make test

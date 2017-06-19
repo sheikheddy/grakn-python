@@ -9,4 +9,3 @@ class TestDuckConstructor(unittest.TestCase):
         test_name = 123
         test_duck = duck.Duck(test_name)
         eq_(test_duck.name, str(test_name))
-
