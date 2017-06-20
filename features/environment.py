@@ -27,6 +27,15 @@ grakn_cmd: str = f'{grakn_dir}/bin/grakn.sh'
 graql_cmd: str = f'{grakn_dir}/bin/graql.sh'
 
 
+match_query_with_results: str = 'match $x isa pokemon; limit 5;'
+match_query_without_results: str = 'match $x has name "Not in graph";'
+invalid_query: str = 'select $x where $x isa pokemon;'
+
+broken_connection: str = 'http://0.1.2.3:4567'
+
+graql_file_of_types_and_instances: str = f'{grakn_dir}/examples/pokemon.gql'
+
+
 def start_grakn():
     try:
         os.makedirs(cache_dir)
