@@ -2,7 +2,8 @@ from behave import *
 from behave.runner import Context
 
 import features.environment as env
-from grakn.client import Graph
+from grakn.client import Graph, GraknError
+from requests.exceptions import ConnectionError
 
 use_step_matcher("re")
 
@@ -19,14 +20,19 @@ def step_impl(context: Context):
     context.graph = Graph(env.broken_connection)
 
 
-@when("The user issues a (valid)? query")
-def step_impl(context: Context):
-    env.execute_query(context, env.valid_query)
+@when("The user issues (a|a valid|an invalid)? query")
+def step_impl(context: Context, query_type: str):
+    query = {
+        'a': env.valid_query, 'a valid': env.valid_query,
+        'an invalid': env.invalid_query
+    }[query_type]
 
-
-@when("The user issues an invalid query")
-def step_impl(context: Context):
-    env.execute_query(context, env.invalid_query)
+    try:
+        context.response = context.graph.execute(query)
+        context.error = None
+    except (GraknError, ConnectionError) as e:
+        context.response = None
+        context.error = e
 
 
 @then("Return a response")

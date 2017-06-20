@@ -5,8 +5,6 @@ import os.path
 import tarfile
 import urllib.request
 import time
-from grakn.client import GraknError
-from requests.exceptions import ConnectionError
 
 from behave.runner import Context
 from behave.model import Scenario
@@ -42,15 +40,6 @@ def start_grakn():
 
 def graql_shell(*args):
     subprocess.run([graql_cmd] + list(args))
-
-
-def execute_query(context: Context, query: str):
-    try:
-        context.response = context.graph.execute(query)
-        context.error = None
-    except (GraknError, ConnectionError) as e:
-        context.response = None
-        context.error = e
 
 
 def after_scenario(context: Context, scenario: Scenario):
