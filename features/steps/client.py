@@ -1,37 +1,32 @@
-from grakn.client import Graph, GraknError
-
 from behave import *
 from behave.runner import Context
 
 import features.environment as env
+from grakn.client import Graph
 
 use_step_matcher("re")
-
-valid_query = 'match $x isa pokemon; limit 5;'
-invalid_query = 'select $x where $x isa pokemon;'
 
 
 @given("A graph containing types and instances")
 def step_impl(context: Context):
     env.start_grakn()
-    env.graql_shell('-f', f'{env.grakn_dir}/examples/pokemon.gql')
+    env.graql_shell('-f', env.graql_file_of_types_and_instances)
     context.graph = Graph()
 
 
 @given("A broken connection to the database")
 def step_impl(context: Context):
-    context.graph = Graph('http://0.1.2.3:4567')
+    context.graph = Graph(env.broken_connection)
 
 
-@when("The user issues a query")
-@when("The user issues a valid query")
+@when("The user issues a (valid)? query")
 def step_impl(context: Context):
-    env.execute_query(context, valid_query)
+    env.execute_query(context, env.valid_query)
 
 
 @when("The user issues an invalid query")
 def step_impl(context: Context):
-    env.execute_query(context, invalid_query)
+    env.execute_query(context, env.invalid_query)
 
 
 @then("Return a response")
