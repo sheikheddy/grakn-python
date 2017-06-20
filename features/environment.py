@@ -19,7 +19,8 @@ grakn_cmd: str = f'{grakn_dir}/bin/grakn.sh'
 graql_cmd: str = f'{grakn_dir}/bin/graql.sh'
 
 
-valid_query: str = 'match $x isa pokemon; limit 5;'
+match_query_with_results: str = 'match $x isa pokemon; limit 5;'
+match_query_without_results: str = 'match $x has name "Not in graph";'
 invalid_query: str = 'select $x where $x isa pokemon;'
 
 broken_connection: str = 'http://0.1.2.3:4567'

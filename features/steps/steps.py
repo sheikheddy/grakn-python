@@ -5,6 +5,16 @@ import features.environment as env
 from grakn.client import Graph, GraknError
 from requests.exceptions import ConnectionError
 
+query_table = {
+    'a query': env.match_query_with_results,
+    'a valid query': env.match_query_with_results,
+    'an invalid query': env.invalid_query,
+    'a match query which should have results': env.match_query_with_results,
+    'a match query which should not have results': env.match_query_without_results
+}
+
+query_keys = '|'.join(query_table.keys())
+
 use_step_matcher("re")
 
 
@@ -20,12 +30,9 @@ def step_impl(context: Context):
     context.graph = Graph(env.broken_connection)
 
 
-@when("The user issues (a|a valid|an invalid)? query")
+@when(f"The user issues ({query_keys})")
 def step_impl(context: Context, query_type: str):
-    query = {
-        'a': env.valid_query, 'a valid': env.valid_query,
-        'an invalid': env.invalid_query
-    }[query_type]
+    query = query_table[query_type]
 
     try:
         context.response = context.graph.execute(query)
@@ -42,7 +49,16 @@ def step_impl(context: Context):
             assert 'id' in concept, f"Could not find 'id' in {concept}"
 
 
+@then("Return a response with matching concepts")
+def step_impl(context: Context):
+    assert len(context.response) > 0
+
+
+@then("Return an empty response")
+def step_impl(context: Context):
+    assert context.response == []
+
+
 @then("Return an error")
 def step_impl(context: Context):
     assert context.error is not None
-
