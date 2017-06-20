@@ -39,6 +39,4 @@ class Graph:
 
 class GraknError(Exception):
     """An exception when executing an operation on a Grakn graph"""
-
-    def __init__(self, *args):
-        Exception.__init__(self, *args)
+    pass
