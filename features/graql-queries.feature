@@ -10,11 +10,6 @@ Feature: Graql Queries
         Then The type is in the graph
         And Return a response with new concepts
 
-    Scenario: Redundant Insert Query
-        Given A type that already exists
-        When The user inserts the type
-        Then Return a response with existing concepts
-
     Scenario: Valid Insert Query for Instances
         Given A type that already exists
         When The user inserts an instance of the type
@@ -51,10 +46,4 @@ Feature: Graql Queries
         Given A Type With instances
         When The user deletes the type
         Then Return an error
-
-
-  @skip
-    Scenario: Delete Query for non Existant Concept
-        When The user delete a concept
-        And The concept does not exist
-        Then Return a response
+    
