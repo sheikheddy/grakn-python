@@ -43,7 +43,7 @@ Feature: Graql Queries
     Scenario: Successful Delete Query
         Given An empty type
         When The user deletes the type
-        And Return a response
+        Then Return a response
 
 
   @skip
