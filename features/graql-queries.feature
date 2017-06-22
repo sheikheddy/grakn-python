@@ -4,24 +4,24 @@ Feature: Graql Queries
     Background: A graph containing types and instances
         Given A graph containing types and instances
 
-    Scenario: Insert Types
+    Scenario: Valid Insert Query for Types
         Given A type that does not exist
         When The user inserts the type
         Then The type is in the graph
         And Return a response with new concepts
 
-    Scenario: Insert Types Which Exist
+    Scenario: Redundant Insert Query
         Given A type that already exists
         When The user inserts the type
         Then Return a response with existing concepts
 
-    Scenario: Insert Instances
+    Scenario: Valid Insert Query for Instances
         Given A type that already exists
         When The user inserts an instance of the type
         Then The instance is in the graph
         And Return a response with new concepts
 
-    Scenario: Insert Instances With Missing Type
+    Scenario: Invalid Insert Query
         Given A type that does not exist
         When The user inserts an instance of the type
         Then Return an error
