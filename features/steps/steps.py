@@ -19,9 +19,6 @@ use_step_matcher("re")
 
 @given("A graph containing types and instances")
 def step_impl(context: Context):
-    env.start_grakn(context)
-    file = env.graql_file_of_types_and_instances(context)
-    env.graql_shell(context, '-f', file)
     context.graph = Graph()
 
 
@@ -32,7 +29,7 @@ def step_impl(context: Context):
 
 @given("A type that does not exist")
 def step_impl(context: Context):
-    context.type = env.non_existent_type
+    context.type = env.non_existent_type(context)
 
 
 @given("A type that already exists")
