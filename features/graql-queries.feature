@@ -46,4 +46,3 @@ Feature: Graql Queries
         Given A Type With instances
         When The user deletes the type
         Then Return an error
-    
