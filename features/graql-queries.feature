@@ -1,5 +1,5 @@
 Feature: Graql Queries
-  As a Grakn Developer, I should be able to interact with a Grakn Graph unsing Graql queries
+  As a Grakn Developer, I should be able to interact with a Grakn Graph using Graql queries
 
     Background: A graph containing types and instances
         Given A graph containing types and instances
@@ -28,34 +28,33 @@ Feature: Graql Queries
 
 
   @skip
-    Scenario: Match Non Existent Concept
+    Scenario: Match Query With Empty Response
 		When The user issues a match query which should not have results
     	Then Return an empty response
 
 
   @skip
-    Scenario: Match Existent Concept
+    Scenario: Match Query With Non-Empty Response
 		When The user issues a match query which should have results
     	Then Return a response with matching concepts
 
 
   @skip
-    Scenario: Deleting a Type
+    Scenario: Successful Delete Query
         Given An empty type
         When The user deletes the type
-        Then Write to the graph
         And Return a response
 
 
   @skip
-    Scenario: Deleting a Type with instances
+    Scenario: Unsuccessful Delete Query
         Given A Type With instances
         When The user deletes the type
         Then Return an error
 
 
   @skip
-    Scenario: Deleting Non-existant Concept
+    Scenario: Delete Query for non Existant Concept
         When The user delete a concept
         And The concept does not exist
         Then Return a response
