@@ -15,7 +15,6 @@ import socket
 
 import sys
 from behave.runner import Context
-from behave.model import Scenario
 from requests import ConnectionError
 
 from grakn.client import GraknError

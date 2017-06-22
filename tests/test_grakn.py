@@ -1,8 +1,8 @@
-from grakn.client import Graph, Result, GraknError
+from grakn import client as gc
 import unittest
 import json
 from typing import List
-from requests import Request, PreparedRequest
+from requests import PreparedRequest
 from httmock import urlmatch, response, HTTMock
 from urllib.parse import parse_qs
 from urllib.parse import SplitResult
@@ -10,7 +10,7 @@ from requests.exceptions import ConnectionError
 
 query: str = 'match $x sub concept; limit 3;'
 
-expected_response: List[Result] = [
+expected_response: List[gc.Result] = [
     {'id': 'a', 'label': 'concept'},
     {'id': 'b', 'label': 'entity'},
     {'id': 'c', 'label': 'resource'}
@@ -53,24 +53,24 @@ class MockEngine:
 
 class TestGraphConstructor(unittest.TestCase):
     def test_open_accepts_no_arguments(self):
-        graph = Graph()
+        graph = gc.Graph()
         self.assertEqual(graph.keyspace, 'grakn')
         self.assertEqual(graph.uri, 'http://localhost:4567')
 
     def test_open_accepts_two_arguments(self):
-        graph = Graph('http://www.google.com', 'mykeyspace')
+        graph = gc.Graph('http://www.google.com', 'mykeyspace')
         self.assertEqual(graph.uri, 'http://www.google.com')
         self.assertEqual(graph.keyspace, 'mykeyspace')
 
     def test_open_accepts_keyword_arguments(self):
-        graph = Graph(keyspace='mykeyspace', uri='http://www.google.com')
+        graph = gc.Graph(keyspace='mykeyspace', uri='http://www.google.com')
         self.assertEqual(graph.uri, 'http://www.google.com')
         self.assertEqual(graph.keyspace, 'mykeyspace')
 
 
 class TestExecute(unittest.TestCase):
     def setUp(self):
-        self.graph = Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
+        self.graph = gc.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
         self.engine = MockEngine()
 
     def is_insert_query(self):
@@ -120,7 +120,7 @@ class TestExecute(unittest.TestCase):
         self.is_invalid_query(self.engine.get)
 
         with self.engine:
-            with self.assertRaises(GraknError, msg=error_message):
+            with self.assertRaises(gc.GraknError, msg=error_message):
                 self.graph.execute(query)
 
     def test_executing_an_insert_query_returns_expected_response(self):
@@ -170,7 +170,7 @@ class TestExecute(unittest.TestCase):
         self.is_invalid_query(self.engine.post)
 
         with self.engine:
-            with self.assertRaises(GraknError, msg=error_message):
+            with self.assertRaises(gc.GraknError, msg=error_message):
                 self.graph.execute(query)
 
     def test_executing_a_query_without_a_server_throws_grakn_exception(self):
