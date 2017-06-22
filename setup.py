@@ -11,5 +11,5 @@ setup(
     download_url='https://github.com/graknlabs/grakn-python/archive/0.1.tar.gz',
     keywords=['<we should also add some keywords>'],
     classifiers=[],
-    requires=['requests']
+    install_requires=['requests']
 )
