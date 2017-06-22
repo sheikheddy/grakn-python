@@ -5,6 +5,7 @@ setup(
     packages=['grakn'],
     version='0.1',
     description='Python driver for Grakn',
+    long_description=open('README.rst').read(),
     author='Grakn Labs',
     author_email='<whatshouldgoherewhoknows>@grakn.ai',
     url='https://github.com/graknlabs/grakn-python',
