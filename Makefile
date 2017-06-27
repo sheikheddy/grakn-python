@@ -6,4 +6,4 @@ test:
 	pipenv run nosetests
 
 accept:
-	pipenv run behave --tags=-skip
+	pipenv run behave features/grakn-spec/features --tags=-skip
