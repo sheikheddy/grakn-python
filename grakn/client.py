@@ -1,11 +1,17 @@
 """Grakn python client."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import requests
 
 Var = str
 Concept = Dict[str, Any]
 Result = Dict[Var, Concept]
+
+MatchResponse = List[Result]
+InsertResponse = List[str]  # TODO: Remove this when endpoint changes response
+DeleteResponse = None
+
+GraqlResponse = Union[MatchResponse, InsertResponse, DeleteResponse]
 
 _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
 
@@ -19,7 +25,7 @@ class Graph:
         self.uri = uri
         self.keyspace = keyspace
 
-    def execute(self, query: str) -> List[Result]:
+    def execute(self, query: str) -> GraqlResponse:
         """Execute a Graql query against the graph
 
         :param query: the Graql query string to execute against the graph
