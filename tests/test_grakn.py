@@ -42,7 +42,11 @@ class MockEngine:
     def __init__(self):
         self.get: MockEndpoint = MockEndpoint('GET')
         self.post: MockEndpoint = MockEndpoint('POST')
-        self.httmock: HTTMock = HTTMock(self.get.handler, self.post.handler)
+        self.delete: MockEndpoint = MockEndpoint('DELETE')
+        self.delete.response = {}
+        self.httmock: HTTMock = HTTMock(
+            self.get.handler, self.post.handler, self.delete.handler
+        )
 
     def __enter__(self):
         self.httmock.__enter__()
@@ -75,7 +79,15 @@ class TestExecute(unittest.TestCase):
 
     def is_insert_query(self):
         self.engine.get.status_code = 405
+        self.engine.delete.status_code = 405
         self.engine.get.response = {'exception': '🚫'}
+        self.engine.delete.response = {'exception': '🚫'}
+
+    def is_delete_query(self):
+        self.engine.get.status_code = 405
+        self.engine.post.status_code = 405
+        self.engine.get.response = {'exception': '🚫'}
+        self.engine.post.response = {'exception': '🚫'}
 
     def is_invalid_query(self, endpoint: MockEndpoint):
         endpoint.status_code = 400
@@ -168,6 +180,42 @@ class TestExecute(unittest.TestCase):
     def test_executing_an_invalid_insert_query_throws_grakn_exception(self):
         self.is_insert_query()
         self.is_invalid_query(self.engine.post)
+
+        with self.engine:
+            with self.assertRaises(gc.GraknError, msg=error_message):
+                self.graph.execute(query)
+
+    def test_executing_a_delete_query_returns_no_response(self):
+        self.is_delete_query()
+
+        with self.engine:
+            self.assertEqual(self.graph.execute(query), None)
+
+    def test_executing_a_delete_query_sends_expected_accept_header(self):
+        self.is_delete_query()
+
+        with self.engine:
+            self.graph.execute(query)
+            headers = self.engine.delete.request.headers
+            self.assertEqual(headers['Accept'], 'application/graql+json')
+
+    def test_executing_a_delete_query_sends_query_in_body(self):
+        self.is_delete_query()
+
+        with self.engine:
+            self.graph.execute(query)
+            self.assertEqual(self.engine.delete.request.body, query)
+
+    def test_executing_a_delete_query_sends_keyspace_in_params(self):
+        self.is_delete_query()
+
+        with self.engine:
+            self.graph.execute(query)
+            self.assertEqual(self.engine.delete.params['keyspace'], [keyspace])
+
+    def test_executing_an_invalid_delete_query_throws_grakn_exception(self):
+        self.is_delete_query()
+        self.is_invalid_query(self.engine.delete)
 
         with self.engine:
             with self.assertRaises(gc.GraknError, msg=error_message):
