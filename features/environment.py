@@ -1,3 +1,4 @@
+import json
 import random
 import subprocess
 
@@ -12,13 +13,11 @@ cache_dir: str = appdirs.user_cache_dir('grakn-spec')
 
 env: str = './features/grakn-spec/env.sh'
 
-match_query_with_results: str = 'match $x isa pokemon; limit 5;'
+match_query_with_results: str = 'match $x isa person; limit 5;'
 match_query_without_results: str = 'match $x has name "Not in graph";'
-invalid_query: str = 'select $x where $x isa pokemon;'
+invalid_query: str = 'select $x where $x isa person;'
 
 broken_connection: str = 'http://0.1.2.3:4567'
-
-existing_type: str = 'pokemon'
 
 
 def execute_query(context: Context, query: str):
@@ -35,18 +34,17 @@ def execute_query(context: Context, query: str):
         print(context.error)
 
 
-def grakn_cmd(context: Context, arg: str, inp=None):
-    subprocess.run([f'{context.grakn_dir}/bin/grakn.sh', arg], input=inp)
-
-
 def graql_shell(context: Context, *args: str) -> bytes:
-    args = [f'{context.grakn_dir}/bin/graql.sh'] + list(args)
+    graql_sh = f'{context.grakn_dir}/bin/graql.sh'
+    args = [graql_sh, '-k', context.graph.keyspace] + list(args)
     proc = subprocess.run(args, stdout=subprocess.PIPE)
     return proc.stdout
 
 
-def graql_file_of_types_and_instances(context: Context) -> str:
-    return f'{context.grakn_dir}/examples/pokemon.gql'
+def existing_type(context: Context) -> str:
+    query = 'match $x isa $X; $X sub entity; $X != entity; limit 1;'
+    result = graql_shell(context, '-o', 'json', '-e', query)
+    return json.loads(result)['X']['name']
 
 
 def non_existent_type(context: Context) -> str:
@@ -64,9 +62,16 @@ def non_existent_type(context: Context) -> str:
     return the_type
 
 
+def new_keyspace(context: Context) -> str:
+    keyspace = 'k' + str(context.keyspace_counter)
+    context.keyspace_counter += 1
+    return keyspace
+
+
 def before_all(context: Context):
     subprocess.run([env, 'start'])
     context.grakn_dir = f'{cache_dir}/grakn'
+    context.keyspace_counter = 0
 
 
 def after_all(context: Context):

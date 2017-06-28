@@ -17,9 +17,14 @@ query_keys = '|'.join(query_table.keys())
 use_step_matcher("re")
 
 
-@given("A graph containing types and instances")
+@given("a graph")
 def step_impl(context: Context):
-    context.graph = Graph()
+    context.graph = Graph(keyspace=env.new_keyspace(context))
+
+
+@given("(ontology|data) `(.*)`")
+def step_impl(context: Context, ont_or_data: str, patterns: str):
+    env.graql_shell(context, '-e', f'insert {patterns}')
 
 
 @given("A broken connection to the database")
@@ -39,7 +44,7 @@ def step_impl(context: Context):
 
 @given("A type (that already exists|with instances)")
 def step_impl(context: Context, type_kind: str):
-    context.type = env.existing_type
+    context.type = env.existing_type(context)
 
 
 @given("An empty type")
@@ -48,7 +53,7 @@ def step_impl(context: Context):
     env.graql_shell(context, '-e', f'insert {context.type} sub entity;')
 
 
-@when('The user executes `(.*)`')
+@when('The user issues `(.*)`')
 def step_impl(context: Context, query: str):
     env.execute_query(context, query)
 
@@ -82,7 +87,7 @@ def step_impl(context: Context):
     env.execute_query(context, f'match $x label {context.concept}; delete $x;')
 
 
-@then("Return `(.*)`")
+@then("The response is `(.*)`")
 def step_impl(context: Context, response: str):
     assert context.response == eval(response)
 
