@@ -1,11 +1,17 @@
 """Grakn python client."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import requests
 
 Var = str
 Concept = Dict[str, Any]
 Result = Dict[Var, Concept]
+
+MatchResponse = List[Result]
+InsertResponse = List[str]  # TODO: Remove this when endpoint changes response
+DeleteResponse = None
+
+GraqlResponse = Union[MatchResponse, InsertResponse, DeleteResponse]
 
 _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
 
@@ -19,7 +25,7 @@ class Graph:
         self.uri = uri
         self.keyspace = keyspace
 
-    def execute(self, query: str) -> List[Result]:
+    def execute(self, query: str) -> GraqlResponse:
         """Execute a Graql query against the graph
 
         :param query: the Graql query string to execute against the graph
@@ -27,15 +33,19 @@ class Graph:
 
         :raises: GraknError, requests.exceptions.ConnectionError
         """
-        response = self._get(query)
+        methods = [self._get, self._post, self._delete]
+
+        response = None
 
         # TODO: Remove this behaviour when there is one Graql endpoint to query
-        wrong_endpoint = response.status_code == 405
-        if wrong_endpoint:
-            response = self._post(query)
+        for method in methods:
+            response = method(query)
+            right_endpoint = response.status_code != 405
+            if right_endpoint:
+                break
 
         if response.ok:
-            return response.json()['response']
+            return response.json().get('response')
         else:
             raise GraknError(response.json()['exception'])
 
@@ -49,6 +59,11 @@ class Graph:
         params = self._params()
         url = self._url()
         return requests.post(url, data=query, params=params, headers=_HEADERS)
+
+    def _delete(self, query: str) -> requests.Response:
+        params = self._params()
+        url = self._url()
+        return requests.delete(url, data=query, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
         return f'{self.uri}/graph/graql'

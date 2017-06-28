@@ -27,14 +27,25 @@ def step_impl(context: Context):
     context.graph = Graph(env.broken_connection)
 
 
+@given("A concept that does not exist")
+def step_impl(context: Context):
+    context.concept = env.non_existent_type(context)
+
+
 @given("A type that does not exist")
 def step_impl(context: Context):
     context.type = env.non_existent_type(context)
 
 
-@given("A type that already exists")
-def step_impl(context: Context):
+@given("A type (that already exists|with instances)")
+def step_impl(context: Context, type_kind: str):
     context.type = env.existing_type
+
+
+@given("An empty type")
+def step_impl(context: Context):
+    context.type = env.non_existent_type(context)
+    env.graql_shell(context, '-e', f'insert {context.type} sub entity;')
 
 
 @when(f"The user issues ({query_keys})")
@@ -56,11 +67,19 @@ def step_impl(context: Context):
         context.instance = context.response[0]
 
 
+@when("The user deletes the type")
+def step_impl(context: Context):
+    env.execute_query(context, f'match $x label {context.type}; delete $x;')
+
+
+@when("The user deletes the concept")
+def step_impl(context: Context):
+    env.execute_query(context, f'match $x label {context.concept}; delete $x;')
+
+
 @then("Return a response")
 def step_impl(context: Context):
-    for result in context.response:
-        for concept in result.values():
-            assert 'id' in concept, f"Could not find 'id' in {concept}"
+    assert context.received_response
 
 
 # TODO: Re-think if these steps are really the same
