@@ -48,6 +48,11 @@ def step_impl(context: Context):
     env.graql_shell(context, '-e', f'insert {context.type} sub entity;')
 
 
+@when('The user executes `(.*)`')
+def step_impl(context: Context, query: str):
+    env.execute_query(context, query)
+
+
 @when(f"The user issues ({query_keys})")
 def step_impl(context: Context, query_type: str):
     query = query_table[query_type]
@@ -75,6 +80,11 @@ def step_impl(context: Context):
 @when("The user deletes the concept")
 def step_impl(context: Context):
     env.execute_query(context, f'match $x label {context.concept}; delete $x;')
+
+
+@then("Return `(.*)`")
+def step_impl(context: Context, response: str):
+    assert context.response == eval(response)
 
 
 @then("Return a response")
