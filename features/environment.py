@@ -25,10 +25,12 @@ def execute_query(context: Context, query: str):
     print(f">>> {query}")
     try:
         context.response = context.graph.execute(query)
+        context.received_response = True
         context.error = None
         print(context.response)
     except (GraknError, ConnectionError) as e:
         context.response = None
+        context.received_response = False
         context.error = e
         print(context.error)
 
