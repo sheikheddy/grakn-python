@@ -8,10 +8,13 @@ Concept = Dict[str, Any]
 Result = Dict[Var, Concept]
 
 MatchResponse = List[Result]
+AskResponse = bool
 InsertResponse = List[str]  # TODO: Remove this when endpoint changes response
 DeleteResponse = None
 
-GraqlResponse = Union[MatchResponse, InsertResponse, DeleteResponse]
+GraqlResponse = Union[
+    MatchResponse, AskResponse, InsertResponse, DeleteResponse
+]
 
 _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
 
