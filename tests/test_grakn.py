@@ -10,7 +10,7 @@ from requests.exceptions import ConnectionError
 
 query: str = 'match $x sub concept; limit 3;'
 
-expected_response: List[gc.Result] = [
+expected_response = [
     {'id': 'a', 'label': 'concept'},
     {'id': 'b', 'label': 'entity'},
     {'id': 'c', 'label': 'resource'}
