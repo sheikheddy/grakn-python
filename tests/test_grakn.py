@@ -24,11 +24,13 @@ keyspace: str = 'somesortofkeyspace'
 
 class MockEndpoint:
     def __init__(self, method: str):
-        self.status_code = 200
-        self.response = {'response': expected_response}
+        self.status_code = None
+        self.response = None
 
         @urlmatch(netloc=mock_uri, path='^/graph/graql$', method=method)
         def grakn_mock(url: SplitResult, request: PreparedRequest):
+            assert self.status_code is not None
+
             self.request = request
             self.params = parse_qs(url.query)
             return response(self.status_code, json.dumps(self.response))
@@ -36,6 +38,18 @@ class MockEndpoint:
         self.handler = grakn_mock
         self.request: PreparedRequest = None
         self.params: dict = None
+
+    def config_200(self) -> None:
+        self.status_code = 200
+        self.response = {'response': expected_response}
+
+    def config_400(self) -> None:
+        self.status_code = 400
+        self.response = {'exception': error_message}
+
+    def config_405(self) -> None:
+        self.status_code = 405
+        self.response = {'exception': '🚫'}
 
 
 class MockEngine:
@@ -77,59 +91,75 @@ class TestExecute(unittest.TestCase):
         self.graph = gc.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
         self.engine = MockEngine()
 
+    def is_read_only_query(self):
+        self.engine.get.config_200()
+        self.engine.post.config_405()
+        self.engine.delete.config_405()
+
     def is_insert_query(self):
-        self.engine.get.status_code = 405
-        self.engine.delete.status_code = 405
-        self.engine.get.response = {'exception': '🚫'}
-        self.engine.delete.response = {'exception': '🚫'}
+        self.engine.get.config_405()
+        self.engine.post.config_200()
+        self.engine.delete.config_405()
 
     def is_delete_query(self):
-        self.engine.get.status_code = 405
-        self.engine.post.status_code = 405
-        self.engine.get.response = {'exception': '🚫'}
-        self.engine.post.response = {'exception': '🚫'}
+        self.engine.get.config_405()
+        self.engine.post.config_405()
+        self.engine.delete.status_code = 200
+        self.engine.delete.response = {}
 
-    def is_invalid_query(self, endpoint: MockEndpoint):
-        endpoint.status_code = 400
-        endpoint.response = {'exception': error_message}
+    def test_executing_a_valid_read_query_returns_expected_response(self):
+        self.is_read_only_query()
 
-    def test_executing_a_valid_match_query_returns_expected_response(self):
         with self.engine:
             self.assertEqual(self.graph.execute(query), expected_response)
 
-    def test_executing_a_match_query_sends_expected_accept_header(self):
+    def test_executing_a_read_query_sends_expected_accept_header(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             headers = self.engine.get.request.headers
             self.assertEqual(headers['Accept'], 'application/graql+json')
 
-    def test_executing_a_match_query_sends_query_in_params(self):
+    def test_executing_a_read_query_sends_query_in_params(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             self.assertEqual(self.engine.get.params['query'], [query])
 
-    def test_executing_a_match_query_sends_keyspace_in_params(self):
+    def test_executing_a_read_query_sends_keyspace_in_params(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             self.assertEqual(self.engine.get.params['keyspace'], [keyspace])
 
-    def test_executing_a_match_query_sends_infer_in_params(self):
+    def test_executing_a_read_query_sends_infer_in_params(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             self.assertEqual(self.engine.get.params['infer'], ['False'])
 
-    def test_executing_a_match_query_sends_materialise_in_params(self):
+    def test_executing_a_read_query_sends_materialise_in_params(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             self.assertEqual(self.engine.get.params['materialise'], ['False'])
 
-    def test_executing_a_match_query_does_not_contact_post_endpoint(self):
+    def test_executing_a_read_query_does_not_contact_post_endpoint(self):
+        self.is_read_only_query()
+
         with self.engine:
             self.graph.execute(query)
             self.assertIsNone(self.engine.post.request)
 
-    def test_executing_an_invalid_match_query_throws_grakn_exception(self):
-        self.is_invalid_query(self.engine.get)
+    def test_executing_an_invalid_read_query_throws_grakn_exception(self):
+        self.is_read_only_query()
+
+        self.engine.get.config_400()
 
         with self.engine:
             with self.assertRaises(gc.GraknError, msg=error_message):
@@ -179,7 +209,7 @@ class TestExecute(unittest.TestCase):
 
     def test_executing_an_invalid_insert_query_throws_grakn_exception(self):
         self.is_insert_query()
-        self.is_invalid_query(self.engine.post)
+        self.engine.post.config_400()
 
         with self.engine:
             with self.assertRaises(gc.GraknError, msg=error_message):
@@ -215,7 +245,7 @@ class TestExecute(unittest.TestCase):
 
     def test_executing_an_invalid_delete_query_throws_grakn_exception(self):
         self.is_delete_query()
-        self.is_invalid_query(self.engine.delete)
+        self.engine.delete.config_400()
 
         with self.engine:
             with self.assertRaises(gc.GraknError, msg=error_message):
