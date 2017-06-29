@@ -19,7 +19,7 @@ use_step_matcher("re")
 
 @given("a graph")
 def step_impl(context: Context):
-    context.graph = Graph(keyspace=env.new_keyspace(context))
+    context.graph = Graph(keyspace=context.new_keyspace())
 
 
 @given("(ontology|data) `(.*)`")

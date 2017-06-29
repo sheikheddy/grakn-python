@@ -20,6 +20,17 @@ invalid_query: str = 'select $x where $x isa person;'
 broken_connection: str = 'http://0.1.2.3:4567'
 
 
+class Keyspaces:
+
+    def __init__(self):
+        self.count = 0
+
+    def new(self) -> str:
+        keyspace = f'k{self.count}'
+        self.count += 1
+        return keyspace
+
+
 def execute_query(context: Context, query: str):
     print(f">>> {query}")
     try:
@@ -62,16 +73,11 @@ def non_existent_type(context: Context) -> str:
     return the_type
 
 
-def new_keyspace(context: Context) -> str:
-    keyspace = 'k' + str(context.keyspace_counter)
-    context.keyspace_counter += 1
-    return keyspace
-
-
 def before_all(context: Context):
     subprocess.run([env, 'start'])
     context.grakn_dir = f'{cache_dir}/grakn'
-    context.keyspace_counter = 0
+    keyspaces = Keyspaces()
+    context.new_keyspace = keyspaces.new
 
 
 def after_all(context: Context):
