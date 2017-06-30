@@ -1,5 +1,3 @@
-import json
-import random
 import subprocess
 
 import appdirs
@@ -12,10 +10,6 @@ from grakn.client import GraknError
 cache_dir: str = appdirs.user_cache_dir('grakn-spec')
 
 env: str = './features/grakn-spec/env.sh'
-
-match_query_with_results: str = 'match $x isa person; limit 5;'
-match_query_without_results: str = 'match $x has name "Not in graph";'
-invalid_query: str = 'select $x where $x isa person;'
 
 broken_connection: str = 'http://0.1.2.3:4567'
 
@@ -50,27 +44,6 @@ def graql_shell(context: Context, *args: str) -> bytes:
     args = [graql_sh, '-k', context.graph.keyspace] + list(args)
     proc = subprocess.run(args, stdout=subprocess.PIPE)
     return proc.stdout
-
-
-def existing_type(context: Context) -> str:
-    query = 'match $x isa $X; $X sub entity; $X != entity; limit 1;'
-    result = graql_shell(context, '-o', 'json', '-e', query)
-    return json.loads(result)['X']['name']
-
-
-def non_existent_type(context: Context) -> str:
-    the_type = 'teapot-in-space'
-    prefixes = ['invisible-', 'pink-', 'java-one-liner-']
-
-    def type_is_in_graph() -> bool:
-        args = ['-o', 'json', '-e', f'match label {the_type}; ask;']
-        result = graql_shell(context, *args)
-        return result == b'true\n'
-
-    while type_is_in_graph():
-        the_type += random.choice(prefixes)
-
-    return the_type
 
 
 def before_all(context: Context):
