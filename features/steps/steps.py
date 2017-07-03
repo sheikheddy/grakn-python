@@ -1,5 +1,6 @@
 from behave import *
 from behave.runner import Context
+from nose.tools import eq_
 
 import features.environment as env
 from grakn.client import Graph
@@ -30,23 +31,27 @@ def step_impl(context: Context, query: str):
 
 @then("the response is `(.*)`")
 def step_impl(context: Context, response: str):
-    assert context.response == eval(response)
-
-
-@then("return a response")
-def step_impl(context: Context):
-    assert context.received_response
+    eq_(context.response, eval(response))
 
 
 # TODO: Re-think if these steps are really the same
-@then("return a response with (matching|new|existing) concepts")
+@then("return a response with (new|existing) concepts")
 def step_impl(context: Context, concept_kind: str):
     assert len(context.response) > 0, f"Response was empty: {context.response}"
 
 
-@then("return an empty response")
+@then("the response has (\d+|no) results?")
+def step_impl(context, num_results: str):
+    if num_results == "no":
+        num_results = "0"
+    num_results = int(num_results)
+    eq_(len(context.response), num_results)
+
+
+@then("the response is empty")
 def step_impl(context: Context):
-    assert context.response == []
+    assert context.received_response
+    assert context.response is None
 
 
 @then('the type "(.*)" is in the graph')
