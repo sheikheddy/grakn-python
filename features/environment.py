@@ -1,58 +1,56 @@
 import subprocess
-
-import appdirs
+from sys import stdout
 
 from behave.runner import Context
 from requests import ConnectionError
 
 from grakn.client import GraknError
 
-cache_dir: str = appdirs.user_cache_dir('grakn-spec')
-
 env: str = './features/grakn-spec/env.sh'
 
 broken_connection: str = 'http://0.1.2.3:4567'
 
 
-class Keyspaces:
-
-    def __init__(self):
-        self.count = 0
-
-    def new(self) -> str:
-        keyspace = f'k{self.count}'
-        self.count += 1
-        return keyspace
-
-
-def execute_query(context: Context, query: str):
+def execute_query(self: Context, query: str):
     print(f">>> {query}")
     try:
-        context.response = context.graph.execute(query)
-        context.received_response = True
-        context.error = None
-        print(context.response)
+        self.response = self.graph.execute(query)
+        self.received_response = True
+        self.error = None
+        print(self.response)
     except (GraknError, ConnectionError) as e:
-        context.response = None
-        context.received_response = False
-        context.error = e
-        print(context.error)
+        self.response = None
+        self.received_response = False
+        self.error = e
+        print(f"Error: {self.error}")
 
 
-def graql_shell(context: Context, *args: str) -> bytes:
-    graql_sh = f'{context.grakn_dir}/bin/graql.sh'
-    args = [graql_sh, '-k', context.graph.keyspace] + list(args)
-    proc = subprocess.run(args, stdout=subprocess.PIPE)
-    return proc.stdout
+Context.execute_query = execute_query
+
+
+def new_keyspace() -> str:
+    process = subprocess.run([env, 'keyspace'], stdout=subprocess.PIPE)
+    return process.stdout.strip().decode('utf-8')
+
+
+def insert(patterns: str):
+    subprocess.run([env, 'insert', patterns])
+
+
+def check_type(label: str) -> bool:
+    process = subprocess.run([env, 'check', 'type', label])
+    return process.returncode == 0
+
+
+def check_instance(resource_label: str, value: str) -> bool:
+    process = subprocess.run([env, 'check', 'instance', resource_label, value])
+    return process.returncode == 0
 
 
 def before_all(context: Context):
     subprocess.run([env, 'start'])
-    context.grakn_dir = f'{cache_dir}/grakn'
-    keyspaces = Keyspaces()
-    context.new_keyspace = keyspaces.new
 
 
 def after_all(context: Context):
-    subprocess.run([f'./features/grakn-spec/env.sh', 'stop'])
+    subprocess.run([env, 'stop'])
 
