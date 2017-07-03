@@ -48,7 +48,8 @@ def check_instance(resource_label: str, value: str) -> bool:
 
 
 def before_all(context: Context):
-    subprocess.run([env, 'start'])
+    process = subprocess.run([env, 'start'])
+    assert process.returncode == 0, "Failed to start test environment"
 
 
 def after_all(context: Context):
