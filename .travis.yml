@@ -4,13 +4,17 @@ python:
 
 sudo: required
 
+env:
+  - GRAKNVERSION=0.13.0
+  - GRAKNVERSION=0.14.0
+
 install:
   - make
   - sudo apt-get update && sudo apt-get install oracle-java8-installer
 
 script:
 - make test
-- make accept
+- make accept GRAKNVERSION=$GRAKNVERSION
 
 deploy:
   provider: pypi

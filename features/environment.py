@@ -48,7 +48,8 @@ def check_instance(resource_label: str, value: str) -> bool:
 
 
 def before_all(context: Context):
-    process = subprocess.run([env, 'start'])
+    version = context.config.userdata['graknversion']
+    process = subprocess.run([env, 'start', version])
     assert process.returncode == 0, "Failed to start test environment"
 
 
