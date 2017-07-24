@@ -1,9 +1,10 @@
 from grakn import client as gc
 import unittest
 import json
-from typing import List
+from typing import Any
 from requests import PreparedRequest
-from httmock import urlmatch, response, HTTMock
+import httmock
+from httmock import urlmatch, HTTMock
 from urllib.parse import parse_qs
 from urllib.parse import SplitResult
 from requests.exceptions import ConnectionError
@@ -23,36 +24,32 @@ keyspace: str = 'somesortofkeyspace'
 
 
 class MockEngine:
-    def __init__(self):
-        self.status_code = None
-        self.response = None
+    def __init__(self, status_code: int, response: Any):
+        self.headers: dict = None
+        self.params: dict = None
 
         @urlmatch(netloc=mock_uri, path='^/graph/graql/execute$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
-            assert self.status_code is not None
-
-            self.request = request
+            self.headers = request.headers
             self.params = parse_qs(url.query)
-            return response(self.status_code, json.dumps(self.response))
-
-        self.request: PreparedRequest = None
-        self.params: dict = None
+            return httmock.response(status_code, json.dumps(response))
 
         self._httmock: HTTMock = HTTMock(grakn_mock)
 
     def __enter__(self):
         self._httmock.__enter__()
+        return self
 
     def __exit__(self, *args, **kwargs):
         self._httmock.__exit__(*args, **kwargs)
 
-    def config_200(self) -> None:
-        self.status_code = 200
-        self.response = {'response': expected_response}
 
-    def config_400(self) -> None:
-        self.status_code = 400
-        self.response = {'exception': error_message}
+def engine_responding_ok() -> MockEngine:
+    return MockEngine(status_code=200, response={'response': expected_response})
+
+
+def engine_responding_bad_request() -> MockEngine:
+    return MockEngine(status_code=400, response={'exception': error_message})
 
 
 class TestGraphConstructor(unittest.TestCase):
@@ -75,65 +72,45 @@ class TestGraphConstructor(unittest.TestCase):
 class TestExecute(unittest.TestCase):
     def setUp(self):
         self.graph = gc.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
-        self.engine = MockEngine()
 
     def test_executing_a_valid_query_returns_expected_response(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok():
             self.assertEqual(self.graph.execute(query), expected_response)
 
     def test_executing_a_query_sends_expected_accept_header(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok() as engine:
             self.graph.execute(query)
-            headers = self.engine.request.headers
-            self.assertEqual(headers['Accept'], 'application/graql+json')
+            self.assertEqual(engine.headers['Accept'], 'application/graql+json')
 
     def test_executing_a_query_sends_query_in_params(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(self.engine.params['query'], [query])
+            self.assertEqual(engine.params['query'], [query])
 
     def test_executing_a_query_sends_keyspace_in_params(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(self.engine.params['keyspace'], [keyspace])
+            self.assertEqual(engine.params['keyspace'], [keyspace])
 
     def test_executing_a_query_sends_infer_in_params(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(self.engine.params['infer'], ['False'])
+            self.assertEqual(engine.params['infer'], ['False'])
 
     def test_executing_a_query_sends_materialise_in_params(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(self.engine.params['materialise'], ['False'])
+            self.assertEqual(engine.params['materialise'], ['False'])
 
     def test_executing_an_invalid_query_throws_grakn_exception(self):
-        self.engine.config_400()
-
-        with self.engine:
-            with self.assertRaises(gc.GraknError, msg=error_message):
-                self.graph.execute(query)
+        throws_error = self.assertRaises(gc.GraknError, msg=error_message)
+        with engine_responding_bad_request(), throws_error:
+            self.graph.execute(query)
 
     def test_executing_an_insert_query_returns_expected_response(self):
-        self.engine.config_200()
-
-        with self.engine:
+        with engine_responding_ok():
             self.assertEqual(self.graph.execute(query), expected_response)
 
     def test_executing_a_query_without_a_server_throws_grakn_exception(self):
-        self.engine.config_200()
-
         with self.assertRaises(ConnectionError):
             self.graph.execute(query)
