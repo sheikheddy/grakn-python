@@ -5,8 +5,7 @@ python:
 sudo: required
 
 env:
-  - GRAKNVERSION=0.13.0
-  - GRAKNVERSION=0.14.0
+  - GRAKNVERSION=0.15.0
 
 install:
   - make
