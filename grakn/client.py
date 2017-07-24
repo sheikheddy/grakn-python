@@ -24,44 +24,25 @@ class Graph:
 
         :raises: GraknError, requests.exceptions.ConnectionError
         """
-        methods = [self._get, self._post, self._delete]
-
-        response = None
-
-        # TODO: Remove this behaviour when there is one Graql endpoint to query
-        for method in methods:
-            response = method(query)
-            right_endpoint = response.status_code != 405
-            if right_endpoint:
-                break
+        response = self._post(query)
 
         if response.ok:
             return response.json().get('response')
         else:
             raise GraknError(response.json()['exception'])
 
-    def _get(self, query: str) -> requests.Response:
-        params = self._params()
-        params['query'] = query
-        url = self._url()
-        return requests.get(url, params=params, headers=_HEADERS)
-
     def _post(self, query: str) -> requests.Response:
-        params = self._params()
+        params = self._params(query)
         url = self._url()
-        return requests.post(url, data=query, params=params, headers=_HEADERS)
-
-    def _delete(self, query: str) -> requests.Response:
-        params = self._params()
-        url = self._url()
-        return requests.delete(url, data=query, params=params, headers=_HEADERS)
+        return requests.post(url, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
-        return f'{self.uri}/graph/graql'
+        return f'{self.uri}/graph/graql/execute'
 
-    def _params(self) -> Dict[str, Any]:
+    def _params(self, query: str) -> Dict[str, Any]:
         return {
-            'keyspace': self.keyspace, 'infer': False, 'materialise': False
+            'keyspace': self.keyspace, 'infer': False, 'materialise': False,
+            'query': query
         }
 
 
