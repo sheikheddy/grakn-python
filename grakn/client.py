@@ -27,22 +27,21 @@ class Graph:
         response = self._post(query)
 
         if response.ok:
-            return response.json().get('response')
+            return response.json()
         else:
             raise GraknError(response.json()['exception'])
 
     def _post(self, query: str) -> requests.Response:
-        params = self._params(query)
+        params = self._params()
         url = self._url()
-        return requests.post(url, params=params, headers=_HEADERS)
+        return requests.post(url, data=query, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
         return f'{self.uri}/graph/graql/execute'
 
-    def _params(self, query: str) -> Dict[str, Any]:
+    def _params(self) -> Dict[str, Any]:
         return {
-            'keyspace': self.keyspace, 'infer': False, 'materialise': False,
-            'query': query
+            'keyspace': self.keyspace, 'infer': False, 'materialise': False
         }
 
 

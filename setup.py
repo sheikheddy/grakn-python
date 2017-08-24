@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='grakn',
     packages=['grakn'],
-    version='0.5',
+    version='0.6',
     description='A Python client for Grakn',
     long_description=open('README.rst').read(),
     author='Grakn Labs',
@@ -11,6 +11,8 @@ setup(
     url='https://github.com/graknlabs/grakn-python',
     download_url='https://github.com/graknlabs/grakn-python/archive/v0.2.tar.gz',
     keywords=['grakn', 'database', 'graph'],
-    classifiers=[],
+    classifiers=[
+        'Development Status :: 5 - Production/Stable'
+    ],
     install_requires=['requests']
 )

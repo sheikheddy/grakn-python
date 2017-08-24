@@ -26,11 +26,13 @@ keyspace: str = 'somesortofkeyspace'
 class MockEngine:
     def __init__(self, status_code: int, response: Any):
         self.headers: dict = None
+        self.body: str = None
         self.params: dict = None
 
         @urlmatch(netloc=mock_uri, path='^/graph/graql/execute$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
             self.headers = request.headers
+            self.body = request.body
             self.params = parse_qs(url.query)
             return httmock.response(status_code, json.dumps(response))
 
@@ -45,7 +47,7 @@ class MockEngine:
 
 
 def engine_responding_ok() -> MockEngine:
-    return MockEngine(status_code=200, response={'response': expected_response})
+    return MockEngine(status_code=200, response=expected_response)
 
 
 def engine_responding_bad_request() -> MockEngine:
@@ -82,10 +84,10 @@ class TestExecute(unittest.TestCase):
             self.graph.execute(query)
             self.assertEqual(engine.headers['Accept'], 'application/graql+json')
 
-    def test_executing_a_query_sends_query_in_params(self):
+    def test_executing_a_query_sends_query_in_body(self):
         with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(engine.params['query'], [query])
+            self.assertEqual(engine.body, query)
 
     def test_executing_a_query_sends_keyspace_in_params(self):
         with engine_responding_ok() as engine:
