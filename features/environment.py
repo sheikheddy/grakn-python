@@ -14,7 +14,7 @@ broken_connection: str = 'http://0.1.2.3:4567'
 def execute_query(self: Context, query: str):
     print(f">>> {query}")
     try:
-        self.response = self.graph.execute(query)
+        self.response = self.graph.execute(query, **self.params)
         self.received_response = True
         self.error = None
         print(self.response)
@@ -52,6 +52,7 @@ def check_instance(resource_label: str, value: str) -> bool:
 
 
 def before_all(context: Context):
+    context.params = {}
     version = context.config.userdata['graknversion']
     process = subprocess.run([env, 'start', version])
     assert process.returncode == 0, "Failed to start test environment"
