@@ -29,7 +29,7 @@ class MockEngine:
         self.body: str = None
         self.params: dict = None
 
-        @urlmatch(netloc=mock_uri, path='^/graph/graql/execute$', method='POST')
+        @urlmatch(netloc=mock_uri, path='^/kb/graql/execute$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
             self.headers = request.headers
             self.body = request.body
@@ -94,10 +94,15 @@ class TestExecute(unittest.TestCase):
             self.graph.execute(query)
             self.assertEqual(engine.params['keyspace'], [keyspace])
 
-    def test_executing_a_query_sends_infer_in_params(self):
+    def test_executing_a_query_sends_infer_false_in_params(self):
         with engine_responding_ok() as engine:
             self.graph.execute(query)
             self.assertEqual(engine.params['infer'], ['False'])
+
+    def test_executing_a_query_with_inference_sends_infer_true_in_params(self):
+        with engine_responding_ok() as engine:
+            self.graph.execute(query, infer=True)
+            self.assertEqual(engine.params['infer'], ['True'])
 
     def test_executing_a_query_sends_materialise_in_params(self):
         with engine_responding_ok() as engine:
