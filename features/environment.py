@@ -33,6 +33,10 @@ def new_keyspace() -> str:
     return process.stdout.strip().decode('utf-8')
 
 
+def define(patterns: str):
+    subprocess.run([env, 'define', patterns])
+
+
 def insert(patterns: str):
     subprocess.run([env, 'insert', patterns])
 

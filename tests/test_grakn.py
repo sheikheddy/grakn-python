@@ -29,7 +29,7 @@ class MockEngine:
         self.body: str = None
         self.params: dict = None
 
-        @urlmatch(netloc=mock_uri, path='^/graph/graql/execute$', method='POST')
+        @urlmatch(netloc=mock_uri, path='^/kb/graql/execute$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
             self.headers = request.headers
             self.body = request.body

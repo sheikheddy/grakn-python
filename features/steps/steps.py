@@ -9,13 +9,18 @@ from grakn.client import Graph
 use_step_matcher("re")
 
 
-@given("a graph")
+@given("a knowledge base")
 def step_impl(context: Context):
     context.graph = Graph(keyspace=env.new_keyspace())
 
 
-@given("(ontology|data) `(.*)`")
-def step_impl(context: Context, ont_or_data: str, patterns: str):
+@given("schema `(.*)`")
+def step_impl(context: Context, patterns: str):
+    env.define(patterns)
+
+
+@given("data `(.*)`")
+def step_impl(context: Context, patterns: str):
     env.insert(patterns)
 
 
@@ -54,12 +59,12 @@ def step_impl(context: Context):
     assert context.response is None
 
 
-@then('the type "(.*)" is in the graph')
+@then('the type "(.*)" is in the knowledge base')
 def step_impl(context: Context, label: str):
     assert env.check_type(label)
 
 
-@then('the instance with (.*) "(.*)" is in the graph')
+@then('the instance with (.*) "(.*)" is in the knowledge base')
 def step_impl(context: Context, resource_label: str, value: str):
     assert env.check_instance(resource_label, value)
 

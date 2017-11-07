@@ -37,7 +37,7 @@ class Graph:
         return requests.post(url, data=query, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
-        return f'{self.uri}/graph/graql/execute'
+        return f'{self.uri}/kb/graql/execute'
 
     def _params(self) -> Dict[str, Any]:
         return {
