@@ -29,9 +29,9 @@ def step_impl(context: Context):
     context.graph = Graph(env.broken_connection)
 
 
-@given("inference is enabled")
+@given("inference is disabled")
 def step_impl(context: Context):
-    context.params = { 'infer': True }
+    context.params = { 'infer': False }
 
 
 @when('the user issues `(.*)`')

@@ -94,15 +94,15 @@ class TestExecute(unittest.TestCase):
             self.graph.execute(query)
             self.assertEqual(engine.params['keyspace'], [keyspace])
 
-    def test_executing_a_query_sends_infer_false_in_params(self):
+    def test_executing_a_query_sends_infer_true_in_params(self):
         with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(engine.params['infer'], ['False'])
-
-    def test_executing_a_query_with_inference_sends_infer_true_in_params(self):
-        with engine_responding_ok() as engine:
-            self.graph.execute(query, infer=True)
             self.assertEqual(engine.params['infer'], ['True'])
+
+    def test_executing_a_query_without_inference_sends_infer_false_in_params(self):
+        with engine_responding_ok() as engine:
+            self.graph.execute(query, infer=False)
+            self.assertEqual(engine.params['infer'], ['False'])
 
     def test_executing_a_query_sends_materialise_in_params(self):
         with engine_responding_ok() as engine:

@@ -5,18 +5,22 @@ from typing import Dict, Any
 import requests
 
 _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
+_QUERY_ENDPOINT: str = '/kb/graql/execute'
 
 
 class Graph:
     """Represents a Grakn graph, identified by a uri and a keyspace."""
 
     DEFAULT_URI: str = 'http://localhost:4567'
+    DEFAULT_KEYSPACE: str = 'grakn'
+    
+    
 
-    def __init__(self, uri: str = DEFAULT_URI, keyspace: str = 'grakn'):
+    def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE):
         self.uri = uri
         self.keyspace = keyspace
 
-    def execute(self, query: str, *, infer: bool = False) -> Any:
+    def execute(self, query: str, *, infer: bool = True) -> Any:
         """Execute a Graql query against the graph
 
         :param query: the Graql query string to execute against the graph
@@ -38,7 +42,7 @@ class Graph:
         return requests.post(url, data=query, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
-        return f'{self.uri}/kb/graql/execute'
+        return f'{self.uri}{_QUERY_ENDPOINT}'
 
     def _params(self, *, infer: bool) -> Dict[str, Any]:
         return {
