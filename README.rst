@@ -3,7 +3,7 @@ Grakn Python Client
 
 A Python client for `Grakn <http://grakn.ai>`_.
 
-Requires Python 3.6 and Grakn 0.17.
+Requires Python 3.6 and Grakn 0.17-0.18.
 
 Installation
 ------------
