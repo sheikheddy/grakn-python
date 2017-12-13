@@ -30,7 +30,7 @@ Now you can connect to a knowledge base:
 
 .. code-block:: python
 
-    >>> client = Graph(uri='http://localhost:4567', keyspace='mygraph')
+    >>> client = Graph(uri='http://localhost:4567', keyspace='mykb')
 
 You can write to the knowledge base:
 
