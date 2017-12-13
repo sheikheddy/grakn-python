@@ -38,7 +38,7 @@ You can write to the knowledge base:
 
     >>> client.execute('define person sub entity;')
     []
-    >>> client.execute('define name sub resource, datatype string;')
+    >>> client.execute('define name sub attribute, datatype string;')
     []
     >>> client.execute('define person has name;')
     []
