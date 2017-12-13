@@ -32,7 +32,7 @@ Now you can connect to a knowledge base:
 
     >>> client = Graph(uri='http://localhost:4567', keyspace='mygraph')
 
-You can write to the graph:
+You can write to the knowledge base:
 
 .. code-block:: python
 
