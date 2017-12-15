@@ -8,22 +8,22 @@ _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
 _QUERY_ENDPOINT: str = '/kb/{}/graql'
 
 
-class Graph:
-    """Represents a Grakn graph, identified by a uri and a keyspace."""
+class Client:
+    """Client to a Grakn knowledge base, identified by a uri and a keyspace."""
 
     DEFAULT_URI: str = 'http://localhost:4567'
     DEFAULT_KEYSPACE: str = 'grakn'
-    
-    
+
+
 
     def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE):
         self.uri = uri
         self.keyspace = keyspace
 
     def execute(self, query: str, *, infer: bool = True) -> Any:
-        """Execute a Graql query against the graph
+        """Execute a Graql query against the knowledge base
 
-        :param query: the Graql query string to execute against the graph
+        :param query: the Graql query string to execute against the knowledge base
         :param infer: enable inference
         :return: a list of query results
 
@@ -52,5 +52,5 @@ class Graph:
 
 
 class GraknError(Exception):
-    """An exception when executing an operation on a Grakn graph"""
+    """An exception when executing an operation on a Grakn knowledge base"""
     pass

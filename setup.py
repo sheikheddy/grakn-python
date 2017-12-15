@@ -10,7 +10,7 @@ setup(
     author_email='community@grakn.ai',
     url='https://github.com/graknlabs/grakn-python',
     download_url='https://github.com/graknlabs/grakn-python/archive/v0.8.1.tar.gz',
-    keywords=['grakn', 'database', 'graph'],
+    keywords=['grakn', 'database', 'graph', 'hyper-relational'],
     classifiers=[
         'Development Status :: 5 - Production/Stable'
     ],

@@ -11,7 +11,7 @@ use_step_matcher("re")
 
 @given("a knowledge base")
 def step_impl(context: Context):
-    context.graph = grakn.Graph(keyspace=env.new_keyspace())
+    context.client = grakn.Client(keyspace=env.new_keyspace())
 
 
 @given("schema `(.*)`")
@@ -26,7 +26,7 @@ def step_impl(context: Context, patterns: str):
 
 @given("a broken connection to the database")
 def step_impl(context: Context):
-    context.graph = grakn.Graph(env.broken_connection)
+    context.client = grakn.Client(env.broken_connection)
 
 
 @given("inference is disabled")

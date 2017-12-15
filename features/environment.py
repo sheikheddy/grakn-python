@@ -14,7 +14,7 @@ broken_connection: str = 'http://0.1.2.3:4567'
 def execute_query(self: Context, query: str):
     print(f">>> {query}")
     try:
-        self.response = self.graph.execute(query, **self.params)
+        self.response = self.client.execute(query, **self.params)
         self.received_response = True
         self.error = None
         print(self.response)

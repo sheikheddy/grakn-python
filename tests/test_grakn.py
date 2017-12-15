@@ -56,70 +56,70 @@ def engine_responding_bad_request() -> MockEngine:
     return MockEngine(status_code=400, response={'exception': error_message})
 
 
-class TestGraphConstructor(unittest.TestCase):
+class TestClientConstructor(unittest.TestCase):
     def test_open_accepts_no_arguments(self):
-        graph = grakn.Graph()
-        self.assertEqual(graph.keyspace, 'grakn')
-        self.assertEqual(graph.uri, 'http://localhost:4567')
+        client = grakn.Client()
+        self.assertEqual(client.keyspace, 'grakn')
+        self.assertEqual(client.uri, 'http://localhost:4567')
 
     def test_open_accepts_two_arguments(self):
-        graph = grakn.Graph('http://www.google.com', 'mykeyspace')
-        self.assertEqual(graph.uri, 'http://www.google.com')
-        self.assertEqual(graph.keyspace, 'mykeyspace')
+        client = grakn.Client('http://www.google.com', 'mykeyspace')
+        self.assertEqual(client.uri, 'http://www.google.com')
+        self.assertEqual(client.keyspace, 'mykeyspace')
 
     def test_open_accepts_keyword_arguments(self):
-        graph = grakn.Graph(keyspace='mykeyspace', uri='http://www.google.com')
-        self.assertEqual(graph.uri, 'http://www.google.com')
-        self.assertEqual(graph.keyspace, 'mykeyspace')
+        client = grakn.Client(keyspace='mykeyspace', uri='http://www.google.com')
+        self.assertEqual(client.uri, 'http://www.google.com')
+        self.assertEqual(client.keyspace, 'mykeyspace')
 
 
 class TestExecute(unittest.TestCase):
     def setUp(self):
-        self.graph = grakn.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
+        self.client = grakn.Client(uri=f'http://{mock_uri}', keyspace=keyspace)
 
     def test_executing_a_valid_query_returns_expected_response(self):
         with engine_responding_ok():
-            self.assertEqual(self.graph.execute(query), expected_response)
+            self.assertEqual(self.client.execute(query), expected_response)
 
     def test_executing_a_query_sends_expected_accept_header(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.headers['Accept'], 'application/graql+json')
 
     def test_executing_a_query_sends_query_in_body(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.body, query)
 
     def test_executing_a_query_sends_keyspace_in_path(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.path, f'/kb/{keyspace}/graql')
 
     def test_executing_a_query_sends_infer_true_in_params(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.params['infer'], ['True'])
 
     def test_executing_a_query_without_inference_sends_infer_false_in_params(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query, infer=False)
+            self.client.execute(query, infer=False)
             self.assertEqual(engine.params['infer'], ['False'])
 
     def test_executing_a_query_sends_materialise_in_params(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.params['materialise'], ['False'])
 
     def test_executing_an_invalid_query_throws_grakn_exception(self):
         throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
         with engine_responding_bad_request(), throws_error:
-            self.graph.execute(query)
+            self.client.execute(query)
 
     def test_executing_an_insert_query_returns_expected_response(self):
         with engine_responding_ok():
-            self.assertEqual(self.graph.execute(query), expected_response)
+            self.assertEqual(self.client.execute(query), expected_response)
 
     def test_executing_a_query_without_a_server_throws_grakn_exception(self):
         with self.assertRaises(ConnectionError):
-            self.graph.execute(query)
+            self.client.execute(query)

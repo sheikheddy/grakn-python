@@ -30,7 +30,7 @@ Now you can connect to a knowledge base:
 
 .. code-block:: python
 
-    >>> client = grakn.Graph(uri='http://localhost:4567', keyspace='mykb')
+    >>> client = grakn.Client(uri='http://localhost:4567', keyspace='mykb')
 
 You can write to the knowledge base:
 
