@@ -14,8 +14,6 @@ class Client:
     DEFAULT_URI: str = 'http://localhost:4567'
     DEFAULT_KEYSPACE: str = 'grakn'
 
-
-
     def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE):
         self.uri = uri
         self.keyspace = keyspace
