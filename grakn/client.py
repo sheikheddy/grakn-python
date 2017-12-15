@@ -5,7 +5,7 @@ from typing import Dict, Any
 import requests
 
 _HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
-_QUERY_ENDPOINT: str = '/kb/graql/execute'
+_QUERY_ENDPOINT: str = '/kb/{}/graql'
 
 
 class Graph:
@@ -42,7 +42,8 @@ class Graph:
         return requests.post(url, data=query, params=params, headers=_HEADERS)
 
     def _url(self) -> str:
-        return f'{self.uri}{_QUERY_ENDPOINT}'
+        endpoint = _QUERY_ENDPOINT.format(self.keyspace)
+        return f'{self.uri}{endpoint}'
 
     def _params(self, *, infer: bool) -> Dict[str, Any]:
         return {

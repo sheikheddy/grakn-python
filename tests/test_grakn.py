@@ -27,12 +27,14 @@ class MockEngine:
     def __init__(self, status_code: int, response: Any):
         self.headers: dict = None
         self.body: str = None
+        self.path: str = None
         self.params: dict = None
 
-        @urlmatch(netloc=mock_uri, path='^/kb/graql/execute$', method='POST')
+        @urlmatch(netloc=mock_uri, path='^/kb/.*/graql$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
             self.headers = request.headers
             self.body = request.body
+            self.path = url.path
             self.params = parse_qs(url.query)
             return httmock.response(status_code, json.dumps(response))
 
@@ -89,10 +91,10 @@ class TestExecute(unittest.TestCase):
             self.graph.execute(query)
             self.assertEqual(engine.body, query)
 
-    def test_executing_a_query_sends_keyspace_in_params(self):
+    def test_executing_a_query_sends_keyspace_in_path(self):
         with engine_responding_ok() as engine:
             self.graph.execute(query)
-            self.assertEqual(engine.params['keyspace'], [keyspace])
+            self.assertEqual(engine.path, f'/kb/{keyspace}/graql')
 
     def test_executing_a_query_sends_infer_true_in_params(self):
         with engine_responding_ok() as engine:
