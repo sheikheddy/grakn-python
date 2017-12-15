@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='grakn',
     packages=['grakn'],
-    version='0.8.1',
+    version='0.9.0',
     description='A Python client for Grakn',
     long_description=open('README.rst').read(),
     author='Grakn Labs',
