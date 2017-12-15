@@ -24,13 +24,13 @@ Begin by importing the client:
 
 .. code-block:: python
 
-    >>> from grakn.client import Graph
+    >>> import grakn
 
 Now you can connect to a knowledge base:
 
 .. code-block:: python
 
-    >>> client = Graph(uri='http://localhost:4567', keyspace='mykb')
+    >>> client = grakn.Graph(uri='http://localhost:4567', keyspace='mykb')
 
 You can write to the knowledge base:
 
@@ -51,7 +51,7 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> graph.execute('match $bob isa person, has name $name; get $name;')
+    >>> client.execute('match $bob isa person, has name $name; get $name;')
     [{'name': {'isa': 'name', 'id': '3141816', 'value': 'Bob'}}]
 
 .. TODO: reference docs

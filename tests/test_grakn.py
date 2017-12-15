@@ -1,4 +1,4 @@
-from grakn import client as gc
+import grakn
 import unittest
 import json
 from typing import Any
@@ -58,24 +58,24 @@ def engine_responding_bad_request() -> MockEngine:
 
 class TestGraphConstructor(unittest.TestCase):
     def test_open_accepts_no_arguments(self):
-        graph = gc.Graph()
+        graph = grakn.Graph()
         self.assertEqual(graph.keyspace, 'grakn')
         self.assertEqual(graph.uri, 'http://localhost:4567')
 
     def test_open_accepts_two_arguments(self):
-        graph = gc.Graph('http://www.google.com', 'mykeyspace')
+        graph = grakn.Graph('http://www.google.com', 'mykeyspace')
         self.assertEqual(graph.uri, 'http://www.google.com')
         self.assertEqual(graph.keyspace, 'mykeyspace')
 
     def test_open_accepts_keyword_arguments(self):
-        graph = gc.Graph(keyspace='mykeyspace', uri='http://www.google.com')
+        graph = grakn.Graph(keyspace='mykeyspace', uri='http://www.google.com')
         self.assertEqual(graph.uri, 'http://www.google.com')
         self.assertEqual(graph.keyspace, 'mykeyspace')
 
 
 class TestExecute(unittest.TestCase):
     def setUp(self):
-        self.graph = gc.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
+        self.graph = grakn.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
 
     def test_executing_a_valid_query_returns_expected_response(self):
         with engine_responding_ok():
@@ -112,7 +112,7 @@ class TestExecute(unittest.TestCase):
             self.assertEqual(engine.params['materialise'], ['False'])
 
     def test_executing_an_invalid_query_throws_grakn_exception(self):
-        throws_error = self.assertRaises(gc.GraknError, msg=error_message)
+        throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
         with engine_responding_bad_request(), throws_error:
             self.graph.execute(query)
 

@@ -4,7 +4,7 @@ from sys import stdout
 from behave.runner import Context
 from requests import ConnectionError
 
-from grakn.client import GraknError
+import grakn
 
 env: str = './features/grakn-spec/env.sh'
 
@@ -18,7 +18,7 @@ def execute_query(self: Context, query: str):
         self.received_response = True
         self.error = None
         print(self.response)
-    except (GraknError, ConnectionError) as e:
+    except (grakn.GraknError, ConnectionError) as e:
         self.response = None
         self.received_response = False
         self.error = e

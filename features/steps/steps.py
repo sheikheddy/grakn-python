@@ -3,7 +3,7 @@ from behave.runner import Context
 from nose.tools import eq_
 
 import features.environment as env
-from grakn.client import Graph
+import grakn
 
 
 use_step_matcher("re")
@@ -11,7 +11,7 @@ use_step_matcher("re")
 
 @given("a knowledge base")
 def step_impl(context: Context):
-    context.graph = Graph(keyspace=env.new_keyspace())
+    context.graph = grakn.Graph(keyspace=env.new_keyspace())
 
 
 @given("schema `(.*)`")
@@ -26,7 +26,7 @@ def step_impl(context: Context, patterns: str):
 
 @given("a broken connection to the database")
 def step_impl(context: Context):
-    context.graph = Graph(env.broken_connection)
+    context.graph = grakn.Graph(env.broken_connection)
 
 
 @given("inference is disabled")
