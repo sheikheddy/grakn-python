@@ -111,6 +111,16 @@ class TestExecute(unittest.TestCase):
             self.client.execute(query)
             self.assertEqual(engine.params['materialise'], ['False'])
 
+    def test_sends_multi_false_when_unspecified(self):
+        with engine_responding_ok() as engine:
+            self.client.execute(query)
+            self.assertEqual(engine.params['multi'], ['False'])
+
+    def test_sends_multi_true_when_specified(self):
+        with engine_responding_ok() as engine:
+            self.client.execute(query, multi=True)
+            self.assertEqual(engine.params['multi'], ['True'])
+
     def test_throws_with_invalid_query(self):
         throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
         with engine_responding_bad_request(), throws_error:

@@ -18,24 +18,25 @@ class Client:
         self.uri = uri
         self.keyspace = keyspace
 
-    def execute(self, query: str, *, infer: bool = True) -> Any:
+    def execute(self, query: str, *, infer: bool = True, multi: bool = False) -> Any:
         """Execute a Graql query against the knowledge base
 
         :param query: the Graql query string to execute against the knowledge base
         :param infer: enable inference
+        :param multi: treat this request as a list of queries
         :return: a list of query results
 
         :raises: GraknError, requests.exceptions.ConnectionError
         """
-        response = self._post(query, infer=infer)
+        response = self._post(query, infer=infer, multi=multi)
 
         if response.ok:
             return response.json()
         else:
             raise GraknError(response.json()['exception'])
 
-    def _post(self, query: str, *, infer: bool) -> requests.Response:
-        params = self._params(infer=infer)
+    def _post(self, query: str, *, infer: bool, multi: bool) -> requests.Response:
+        params = self._params(infer=infer, multi=multi)
         url = self._url()
         return requests.post(url, data=query, params=params, headers=_HEADERS)
 
@@ -43,9 +44,9 @@ class Client:
         endpoint = _QUERY_ENDPOINT.format(self.keyspace)
         return f'{self.uri}{endpoint}'
 
-    def _params(self, *, infer: bool) -> Dict[str, Any]:
+    def _params(self, *, infer: bool, multi: bool) -> Dict[str, Any]:
         return {
-            'keyspace': self.keyspace, 'infer': infer, 'materialise': False
+            'keyspace': self.keyspace, 'infer': infer, 'materialise': False, 'multi': multi
         }
 
 
