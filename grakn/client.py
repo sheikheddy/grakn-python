@@ -46,7 +46,7 @@ class Client:
 
     def _params(self, *, infer: bool, multi: bool) -> Dict[str, Any]:
         return {
-            'keyspace': self.keyspace, 'infer': infer, 'materialise': False, 'multi': multi
+            'infer': infer, 'materialise': False, 'multi': multi
         }
 
 
