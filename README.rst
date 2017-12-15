@@ -37,13 +37,13 @@ You can write to the knowledge base:
 .. code-block:: python
 
     >>> client.execute('define person sub entity;')
-    []
+    {}
     >>> client.execute('define name sub attribute, datatype string;')
-    []
+    {}
     >>> client.execute('define person has name;')
-    []
+    {}
     >>> client.execute('insert $bob isa person, has name "Bob";')
-    ['1234']
+    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': 'V12488', ...}}]
 
 .. TODO: update this output when insert query output changes
 
@@ -52,7 +52,7 @@ Or read from it:
 .. code-block:: python
 
     >>> client.execute('match $bob isa person, has name $name; get $name;')
-    [{'name': {'isa': 'name', 'id': '3141816', 'value': 'Bob'}}]
+    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': 'V8384', ...}}]
 
 .. TODO: reference docs
 
