@@ -43,7 +43,7 @@ You can write to the knowledge base:
     >>> client.execute('define person has name;')
     {}
     >>> client.execute('insert $bob isa person, has name "Bob";')
-    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': 'V12488', ...}}]
+    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': ...}}]
 
 .. TODO: update this output when insert query output changes
 
@@ -51,8 +51,8 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> client.execute('match $bob isa person, has name $name; get $name;')
-    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': 'V8384', ...}}]
+    >>> resp = client.execute('match $bob isa person, has name $name; get $name;')
+    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': ...}}]
 
 .. TODO: reference docs
 
