@@ -1,1 +1,1 @@
-from . import *
+from grakn.client import Client, GraknError

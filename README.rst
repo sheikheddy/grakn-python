@@ -3,7 +3,7 @@ Grakn Python Client
 
 A Python client for `Grakn <http://grakn.ai>`_.
 
-Requires Python 3.6 and Grakn 0.17-0.18.
+Requires Python 3.6 and Grakn 1.0.
 
 Installation
 ------------
@@ -24,26 +24,26 @@ Begin by importing the client:
 
 .. code-block:: python
 
-    >>> from grakn.client import Graph
+    >>> import grakn
 
 Now you can connect to a knowledge base:
 
 .. code-block:: python
 
-    >>> client = Graph(uri='http://localhost:4567', keyspace='mykb')
+    >>> client = grakn.Client(uri='http://localhost:4567', keyspace='mykb')
 
 You can write to the knowledge base:
 
 .. code-block:: python
 
     >>> client.execute('define person sub entity;')
-    []
+    {}
     >>> client.execute('define name sub attribute, datatype string;')
-    []
+    {}
     >>> client.execute('define person has name;')
-    []
+    {}
     >>> client.execute('insert $bob isa person, has name "Bob";')
-    ['1234']
+    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': ...}}]
 
 .. TODO: update this output when insert query output changes
 
@@ -51,8 +51,8 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> graph.execute('match $bob isa person, has name $name; get $name;')
-    [{'name': {'isa': 'name', 'id': '3141816', 'value': 'Bob'}}]
+    >>> resp = client.execute('match $bob isa person, has name $name; get $name;')
+    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': ...}}]
 
 .. TODO: reference docs
 

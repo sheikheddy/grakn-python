@@ -1,4 +1,4 @@
-from grakn import client as gc
+import grakn
 import unittest
 import json
 from typing import Any
@@ -27,12 +27,14 @@ class MockEngine:
     def __init__(self, status_code: int, response: Any):
         self.headers: dict = None
         self.body: str = None
+        self.path: str = None
         self.params: dict = None
 
-        @urlmatch(netloc=mock_uri, path='^/kb/graql/execute$', method='POST')
+        @urlmatch(netloc=mock_uri, path='^/kb/.*/graql$', method='POST')
         def grakn_mock(url: SplitResult, request: PreparedRequest):
             self.headers = request.headers
             self.body = request.body
+            self.path = url.path
             self.params = parse_qs(url.query)
             return httmock.response(status_code, json.dumps(response))
 
@@ -54,70 +56,80 @@ def engine_responding_bad_request() -> MockEngine:
     return MockEngine(status_code=400, response={'exception': error_message})
 
 
-class TestGraphConstructor(unittest.TestCase):
-    def test_open_accepts_no_arguments(self):
-        graph = gc.Graph()
-        self.assertEqual(graph.keyspace, 'grakn')
-        self.assertEqual(graph.uri, 'http://localhost:4567')
+class TestClientConstructor(unittest.TestCase):
+    def test_accepts_no_arguments(self):
+        client = grakn.Client()
+        self.assertEqual(client.keyspace, 'grakn')
+        self.assertEqual(client.uri, 'http://localhost:4567')
 
-    def test_open_accepts_two_arguments(self):
-        graph = gc.Graph('http://www.google.com', 'mykeyspace')
-        self.assertEqual(graph.uri, 'http://www.google.com')
-        self.assertEqual(graph.keyspace, 'mykeyspace')
+    def test_accepts_two_arguments(self):
+        client = grakn.Client('http://www.google.com', 'mykeyspace')
+        self.assertEqual(client.uri, 'http://www.google.com')
+        self.assertEqual(client.keyspace, 'mykeyspace')
 
-    def test_open_accepts_keyword_arguments(self):
-        graph = gc.Graph(keyspace='mykeyspace', uri='http://www.google.com')
-        self.assertEqual(graph.uri, 'http://www.google.com')
-        self.assertEqual(graph.keyspace, 'mykeyspace')
+    def test_accepts_keyword_arguments(self):
+        client = grakn.Client(keyspace='mykeyspace', uri='http://www.google.com')
+        self.assertEqual(client.uri, 'http://www.google.com')
+        self.assertEqual(client.keyspace, 'mykeyspace')
 
 
 class TestExecute(unittest.TestCase):
     def setUp(self):
-        self.graph = gc.Graph(uri=f'http://{mock_uri}', keyspace=keyspace)
+        self.client = grakn.Client(uri=f'http://{mock_uri}', keyspace=keyspace)
 
-    def test_executing_a_valid_query_returns_expected_response(self):
+    def test_valid_query_returns_expected_response(self):
         with engine_responding_ok():
-            self.assertEqual(self.graph.execute(query), expected_response)
+            self.assertEqual(self.client.execute(query), expected_response)
 
-    def test_executing_a_query_sends_expected_accept_header(self):
+    def test_sends_expected_accept_header(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.headers['Accept'], 'application/graql+json')
 
-    def test_executing_a_query_sends_query_in_body(self):
+    def test_sends_query_in_body(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.body, query)
 
-    def test_executing_a_query_sends_keyspace_in_params(self):
+    def test_sends_keyspace_in_path(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
-            self.assertEqual(engine.params['keyspace'], [keyspace])
+            self.client.execute(query)
+            self.assertEqual(engine.path, f'/kb/{keyspace}/graql')
 
-    def test_executing_a_query_sends_infer_true_in_params(self):
+    def test_sends_infer_true_in_params(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.params['infer'], ['True'])
 
-    def test_executing_a_query_without_inference_sends_infer_false_in_params(self):
+    def test_sends_infer_false_when_specified(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query, infer=False)
+            self.client.execute(query, infer=False)
             self.assertEqual(engine.params['infer'], ['False'])
 
-    def test_executing_a_query_sends_materialise_in_params(self):
+    def test_sends_materialise_in_params(self):
         with engine_responding_ok() as engine:
-            self.graph.execute(query)
+            self.client.execute(query)
             self.assertEqual(engine.params['materialise'], ['False'])
 
-    def test_executing_an_invalid_query_throws_grakn_exception(self):
-        throws_error = self.assertRaises(gc.GraknError, msg=error_message)
+    def test_sends_multi_false_when_unspecified(self):
+        with engine_responding_ok() as engine:
+            self.client.execute(query)
+            self.assertEqual(engine.params['multi'], ['False'])
+
+    def test_sends_multi_true_when_specified(self):
+        with engine_responding_ok() as engine:
+            self.client.execute(query, multi=True)
+            self.assertEqual(engine.params['multi'], ['True'])
+
+    def test_throws_with_invalid_query(self):
+        throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
         with engine_responding_bad_request(), throws_error:
-            self.graph.execute(query)
+            self.client.execute(query)
 
-    def test_executing_an_insert_query_returns_expected_response(self):
+    def test_insert_query_returns_expected_response(self):
         with engine_responding_ok():
-            self.assertEqual(self.graph.execute(query), expected_response)
+            self.assertEqual(self.client.execute(query), expected_response)
 
-    def test_executing_a_query_without_a_server_throws_grakn_exception(self):
+    def test_throws_without_server(self):
         with self.assertRaises(ConnectionError):
-            self.graph.execute(query)
+            self.client.execute(query)
