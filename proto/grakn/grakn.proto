@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package ai.grakn.rpc;
+
+service Grakn {
+    rpc Tx (stream TxRequest) returns (stream TxResponse);
+}
+
+message TxRequest {
+    message Open {
+        Keyspace keyspace = 1;
+    }
+    message Commit {}
+    message ExecQuery {
+        Query query = 1;
+        bool setInfer = 2;
+        bool infer = 3;
+    }
+    oneof request {
+        Open open = 1;
+        Commit commit = 2;
+        ExecQuery execQuery = 3;
+    }
+}
+
+message TxResponse {
+    message QueryResult {
+        string value = 1;
+    }
+    oneof response {
+        QueryResult queryResult = 1;
+    }
+}
+
+message Keyspace {
+    string value = 1;
+}
+
+message Query {
+    string value = 1;
+}

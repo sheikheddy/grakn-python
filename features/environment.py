@@ -1,8 +1,6 @@
 import subprocess
-from sys import stdout
 
 from behave.runner import Context
-from requests import ConnectionError
 
 import grakn
 
