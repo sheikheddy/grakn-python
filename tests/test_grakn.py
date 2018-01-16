@@ -179,12 +179,6 @@ class TestExecute(unittest.TestCase):
             self.client.execute(query)
             self.assertEqual(len(engine.requests), 3)
 
-    def test_sends_multi_false_when_unspecified(self):
-        pass  # TODO
-
-    def test_sends_multi_true_when_specified(self):
-        pass  # TODO
-
     def test_throws_with_invalid_query(self):
         throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
         with engine_responding_bad_request(), throws_error:

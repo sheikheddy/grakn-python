@@ -25,12 +25,11 @@ class Client:
         self.uri = uri
         self.keyspace = keyspace
 
-    def execute(self, query: str, *, infer: Optional[bool] = None, multi: bool = False) -> Any:
+    def execute(self, query: str, *, infer: Optional[bool] = None) -> Any:
         """Execute a Graql query against the knowledge base
 
         :param query: the Graql query string to execute against the knowledge base
         :param infer: enable inference
-        :param multi: treat this request as a list of queries
         :return: a list of query results
 
         :raises: GraknError, GraknConnectionError
