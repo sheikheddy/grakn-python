@@ -1,16 +1,96 @@
 """Grakn python client."""
 import json
-from typing import Dict, Any, Optional, Iterator, Union
+from queue import Queue
+from typing import Any, Optional, Iterator, Union, TypeVar, Generic
 
 import grpc
 
 from grakn import grakn_pb2_grpc
 from grakn.grakn_pb2 import TxRequest, Keyspace, Query, TxResponse
 
-_HEADERS: Dict[str, str] = {'Accept': 'application/graql+json'}
-_QUERY_ENDPOINT: str = '/kb/{}/graql'
-
 _TIMEOUT = 60
+
+T = TypeVar('T')
+
+
+class BlockingIter(Generic[T]):
+    def __init__(self):
+        self._queue = Queue()
+
+    def __iter__(self) -> Iterator[T]:
+        return self
+
+    def __next__(self) -> T:
+        elem = self._queue.get(block=True)
+        if elem is None:
+            raise StopIteration()
+        else:
+            return elem
+
+    def add(self, elem: T):
+        if elem is None:
+            raise ValueError()
+        self._queue.put(elem)
+
+    def close(self):
+        self._queue.put(None)
+
+
+def _next_response(responses: Iterator[TxResponse], default: Optional[TxResponse] = None) -> TxResponse:
+    try:
+        return next(responses, default)
+    except grpc.RpcError as e:
+        raise _convert_grpc_error(e)
+
+
+class GraknTx:
+    def __init__(self, requests: BlockingIter[TxRequest], responses: Iterator[TxResponse]):
+        self._requests = requests
+        self._responses = responses
+
+    def _next_response(self) -> TxResponse:
+        return _next_response(self._responses)
+
+    def execute(self, query: str, *, infer: Optional[bool] = None) -> Any:
+        """Execute a Graql query against the knowledge base
+
+        :param query: the Graql query string to execute against the knowledge base
+        :param infer: enable inference
+        :return: a list of query results
+
+        :raises: GraknError, GraknConnectionError
+        """
+        set_infer = infer is not None
+        exec_query = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=set_infer, infer=infer))
+        self._requests.add(exec_query)
+        response = self._next_response()
+        return json.loads(response.queryResult.value)
+
+    def commit(self):
+        self._requests.add(TxRequest(commit=TxRequest.Commit()))
+
+
+class GraknTxContext:
+    def __init__(self, keyspace: str, stub: grakn_pb2_grpc.GraknStub):
+        self._requests = BlockingIter()
+
+        self._requests.add(TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace))))
+
+        try:
+            self._responses: Iterator[TxResponse] = stub.Tx(self._requests, timeout=_TIMEOUT)
+
+        except grpc.RpcError as e:
+            raise _convert_grpc_error(e)
+
+        self._tx = GraknTx(self._requests, self._responses)
+
+    def __enter__(self) -> GraknTx:
+        return self._tx
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._requests.close()
+        # we ask for another response. This tells gRPC we are done
+        _next_response(self._responses, None)
 
 
 class Client:
@@ -34,24 +114,13 @@ class Client:
 
         :raises: GraknError, GraknConnectionError
         """
-        set_infer = infer is not None
+        with self.open() as tx:
+            result = tx.execute(query, infer=infer)
+            tx.commit()
+        return result
 
-        open_tx = TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=self.keyspace)))
-        exec_query = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=set_infer, infer=infer))
-        commit = TxRequest(commit=TxRequest.Commit())
-
-        requests = iter((open_tx, exec_query, commit))
-
-        try:
-            responses: Iterator[TxResponse] = self._stub.Tx(requests, timeout=_TIMEOUT)
-            response = next(responses)
-
-            # we ask for another response. This tells gRPC we are done
-            next(responses, None)
-        except grpc.RpcError as e:
-            raise _convert_grpc_error(e)
-
-        return json.loads(response.queryResult.value)
+    def open(self) -> GraknTxContext:
+        return GraknTxContext(self.keyspace, self._stub)
 
 
 class GraknError(Exception):

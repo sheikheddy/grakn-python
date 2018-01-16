@@ -105,8 +105,12 @@ class MockEngine:
         pass
 
 
-def engine_responding_ok() -> MockEngine:
+def engine_responding_to_query() -> MockEngine:
     return MockEngine(responses=[TxResponse(queryResult=TxResponse.QueryResult(value=json.dumps(expected_response)))])
+
+
+def engine_responding_with_nothing() -> MockEngine:
+    return MockEngine(responses=[])
 
 
 def engine_responding_bad_request() -> MockEngine:
@@ -141,41 +145,41 @@ class TestExecute(unittest.TestCase):
         grakn.client._TIMEOUT = self._original_timeout
 
     def test_valid_query_returns_expected_response(self):
-        with engine_responding_ok():
+        with engine_responding_to_query():
             self.assertEqual(self.client.execute(query), expected_response)
 
     def test_sends_open_request_with_keyspace(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query)
             expected_request = TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace)))
             self.assertEqual(engine.requests[0], expected_request)
 
     def test_sends_execute_query_request_with_parameters(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query)
             expected = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=False))
             self.assertEqual(engine.requests[1], expected)
 
     def test_specifies_inference_on_when_requested(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query, infer=True)
             self.assertEqual(engine.requests[1].execQuery.setInfer, True)
             self.assertEqual(engine.requests[1].execQuery.infer, True)
 
     def test_specifies_inference_off_when_requested(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query, infer=False)
             self.assertEqual(engine.requests[1].execQuery.setInfer, True)
             self.assertEqual(engine.requests[1].execQuery.infer, False)
 
     def test_sends_commit_request(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query)
             expected = TxRequest(commit=TxRequest.Commit())
             self.assertEqual(engine.requests[2], expected)
 
     def test_completes_request(self):
-        with engine_responding_ok() as engine:
+        with engine_responding_to_query() as engine:
             self.client.execute(query)
             self.assertEqual(len(engine.requests), 3)
 
@@ -187,3 +191,86 @@ class TestExecute(unittest.TestCase):
     def test_throws_without_server(self):
         with self.assertRaises(ConnectionError):
             self.client_to_no_server.execute(query)
+
+
+class TestOpenTx(unittest.TestCase):
+
+    def setUp(self):
+        self._original_timeout = grakn.client._TIMEOUT
+        grakn.client._TIMEOUT = 5
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
+
+    def tearDown(self):
+        grakn.client._TIMEOUT = self._original_timeout
+
+    def test_sends_open_request_with_keyspace(self):
+        with engine_responding_with_nothing() as engine, self.client.open():
+            pass
+
+        expected_request = TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace)))
+        self.assertEqual(engine.requests[0], expected_request)
+
+    def test_completes_request(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            tx.execute(query)
+            tx.commit()
+
+        self.assertEqual(len(engine.requests), 3)
+
+
+class TestExecuteOnTx(unittest.TestCase):
+
+    def setUp(self):
+        self._original_timeout = grakn.client._TIMEOUT
+        grakn.client._TIMEOUT = 5
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
+
+    def tearDown(self):
+        grakn.client._TIMEOUT = self._original_timeout
+
+    def test_valid_query_returns_expected_response(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            self.assertEqual(tx.execute(query), expected_response)
+
+    def test_sends_execute_query_request_with_parameters(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            tx.execute(query)
+
+        expected = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=False))
+        self.assertEqual(engine.requests[1], expected)
+
+    def test_specifies_inference_on_when_requested(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            tx.execute(query, infer=True)
+
+        self.assertEqual(engine.requests[1].execQuery.setInfer, True)
+        self.assertEqual(engine.requests[1].execQuery.infer, True)
+
+    def test_specifies_inference_off_when_requested(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            tx.execute(query, infer=False)
+
+        self.assertEqual(engine.requests[1].execQuery.setInfer, True)
+        self.assertEqual(engine.requests[1].execQuery.infer, False)
+
+
+class TestCommit(unittest.TestCase):
+
+    def setUp(self):
+        self._original_timeout = grakn.client._TIMEOUT
+        grakn.client._TIMEOUT = 5
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
+
+    def tearDown(self):
+        grakn.client._TIMEOUT = self._original_timeout
+
+    def test_sends_commit_request(self):
+        with engine_responding_to_query() as engine, self.client.open() as tx:
+            tx.execute(query)
+            tx.commit()
+
+        expected = TxRequest(commit=TxRequest.Commit())
+        self.assertEqual(engine.requests[2], expected)
