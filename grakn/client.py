@@ -30,7 +30,8 @@ class BlockingIter(Generic[T]):
     def add(self, elem: T):
         if elem is None:
             raise ValueError()
-        self._queue.put(elem)
+        else:
+            self._queue.put(elem)
 
     def close(self):
         self._queue.put(None)
@@ -44,6 +45,8 @@ def _next_response(responses: Iterator[TxResponse], default: Optional[TxResponse
 
 
 class GraknTx:
+    """A transaction against a knowledge graph. The transaction ends when its surrounding context closes."""
+
     def __init__(self, requests: BlockingIter[TxRequest], responses: Iterator[TxResponse]):
         self._requests = requests
         self._responses = responses
@@ -67,10 +70,12 @@ class GraknTx:
         return json.loads(response.queryResult.value)
 
     def commit(self):
+        """Commit the transaction."""
         self._requests.add(TxRequest(commit=TxRequest.Commit()))
 
 
 class GraknTxContext:
+    """Contains a GraknTx. This should be used in a `with` statement in order to retrieve the GraknTx"""
     def __init__(self, keyspace: str, stub: grakn_pb2_grpc.GraknStub):
         self._requests = BlockingIter()
 
@@ -106,7 +111,7 @@ class Client:
         self.keyspace = keyspace
 
     def execute(self, query: str, *, infer: Optional[bool] = None) -> Any:
-        """Execute a Graql query against the knowledge base
+        """Execute and commit a Graql query against the knowledge base
 
         :param query: the Graql query string to execute against the knowledge base
         :param infer: enable inference
@@ -120,6 +125,10 @@ class Client:
         return result
 
     def open(self) -> GraknTxContext:
+        """Open a transaction
+
+        :return: a GraknTxContext that can be opened using a `with` statement
+        """
         return GraknTxContext(self.keyspace, self._stub)
 
 
