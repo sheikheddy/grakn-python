@@ -12,18 +12,30 @@ broken_connection: str = 'http://0.1.2.3:4567'
 def execute_query(self: Context, query: str):
     print(f">>> {query}")
     try:
-        self.response = self.client.execute(query, **self.params)
-        self.received_response = True
-        self.error = None
-        print(self.response)
+        self._response = self.client.execute(query, **self.params)
+        self._received_response = True
+        self._error = None
+        print(self._response)
     except (grakn.GraknError, ConnectionError) as e:
-        self.response = None
-        self.received_response = False
-        self.error = e
-        print(f"Error: {self.error}")
+        self._response = None
+        self._received_response = False
+        self._error = e
+        print(f"Error: {self._error}")
+
+
+def get_response(self: Context):
+    assert self._received_response, self._error
+    return self._response
+
+
+def get_error(self: Context):
+    assert not self._received_response, self._response
+    return self._error
 
 
 Context.execute_query = execute_query
+Context.get_response = get_response
+Context.get_error = get_error
 
 
 def new_keyspace() -> str:

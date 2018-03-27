@@ -1,22 +1,39 @@
 import json
 import unittest
 from concurrent import futures
-from typing import Iterator, List, Iterable
+from threading import Thread
+from typing import Iterator, List, Iterable, Dict, Callable, Optional, Union
 
 import grpc
+from collections import defaultdict
 
 import grakn
-from grakn import grakn_pb2_grpc
-from grakn.grakn_pb2 import TxRequest, TxResponse, Keyspace, Query
-from grakn.grakn_pb2_grpc import GraknServicer
+import grakn_pb2_grpc
+from concept_pb2 import Concept, ConceptId, Unit, ConceptMethod, ConceptResponse, Label
+from grakn_pb2 import TxRequest, TxResponse, Keyspace, Query, Open, Write, QueryResult, Answer, Done, ExecQuery, Infer, \
+    RunConceptMethod, Commit
+from grakn_pb2_grpc import GraknServicer
+from iterator_pb2 import Next, IteratorId
+
+ITERATOR_ID = iteratorId=IteratorId(id=5)
+ITERATOR_RESPONSE = TxResponse(iteratorId=ITERATOR_ID)
+DONE = TxResponse(done=Done())
+NEXT = TxRequest(next=Next(iteratorId=ITERATOR_ID))
 
 query: str = 'match $x sub concept; limit 3;'
 
 expected_response = [
-    {'id': 'a', 'label': 'concept'},
-    {'id': 'b', 'label': 'entity'},
-    {'id': 'c', 'label': 'resource'}
+    {'x': {'id': 'a', 'label': 'concept'}},
+    {'x': {'id': 'b', 'label': 'entity'}},
+    {'x': {'id': 'c', 'label': 'resource'}}
 ]
+
+grpc_answers = [
+    Answer(answer={'x': Concept(id=ConceptId(value='a'))}),
+    Answer(answer={'x': Concept(id=ConceptId(value='b'))}),
+    Answer(answer={'x': Concept(id=ConceptId(value='c'))})
+]
+grpc_responses = [QueryResult(answer=grpc_answer) for grpc_answer in grpc_answers]
 
 error_message: str = 'sorry we changed the syntax again'
 
@@ -25,9 +42,26 @@ mock_uri_to_no_server: str = 'localhost:9999'
 keyspace: str = 'somesortofkeyspace'
 
 
+def eq(tx_request: TxRequest):
+    return lambda other: other == tx_request
+
+
+class MockResponse:
+    def __init__(self, request_matcher: Callable[[TxRequest], bool], response: TxResponse):
+        self._request_matcher = request_matcher
+        self._response = response
+
+    def test(self, request: TxRequest) -> Optional[TxResponse]:
+        if self._request_matcher(request):
+            return self._response
+        else:
+            return None
+
+
 class MockGraknServicer(GraknServicer):
+
     def __init__(self):
-        self.responses = None
+        self.responses = []
         self.error = None
         self.requests = None
 
@@ -37,12 +71,24 @@ class MockGraknServicer(GraknServicer):
             context.set_trailing_metadata([("message", self.error)])
             return None
 
-        for response in self.responses:
-            print(f"RESPONSE: {response}")
-            yield response
+        self.requests = []
 
-        self.requests = list(request_iterator)
-        print(f"REQUESTS: {self.requests}")
+        for request in request_iterator:
+            print(f"REQUEST: {request}")
+            self.requests.append(request)
+
+            for mock_response in self.responses:
+                tx_response = mock_response.test(request)
+                if tx_response is not None:
+                    print(f"RESPONSE: {tx_response}")
+                    self.responses.remove(mock_response)
+                    yield tx_response
+                    break
+            else:
+                yield DONE
+
+    def Delete(self, request, context):
+        raise NotImplementedError
 
 
 class GrpcServer:
@@ -53,14 +99,6 @@ class GrpcServer:
     @requests.setter
     def requests(self, value: List[TxRequest]):
         self._servicer.requests = value
-
-    @property
-    def responses(self) -> List[TxResponse]:
-        return self._servicer.responses
-
-    @responses.setter
-    def responses(self, value: List[TxResponse]):
-        self._servicer.responses = value
 
     @property
     def error(self) -> str:
@@ -87,17 +125,29 @@ SERVER = GrpcServer()
 
 
 class MockEngine:
-    @property
-    def requests(self) -> List[TxRequest]:
-        return SERVER.requests
 
-    def __init__(self, *, responses: Iterable[TxResponse] = None, error: str = None):
-        self._responses = responses
+    def verify(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]):
+        assert self._test(predicate), f"Expected {predicate}"
+
+    def _test(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]) -> bool:
+        if predicate in SERVER.requests:
+            return True
+        else:
+            try:
+                if any(predicate(r) for r in SERVER.requests):
+                    return True
+                else:
+                    return False
+            except TypeError:
+                return False
+
+    def __init__(self, *, responses: List[MockResponse] = None, error: str = None):
+        self._responses = responses if responses else []
         self._error = error
 
     def __enter__(self):
         SERVER.requests = None
-        SERVER.responses = self._responses
+        SERVER._servicer.responses = self._responses
         SERVER.error = self._error
         return self
 
@@ -105,12 +155,27 @@ class MockEngine:
         pass
 
 
+def _mock_label_response(cid: str, label: str) -> MockResponse:
+    run_concept_method = RunConceptMethod(id=ConceptId(value=cid), conceptMethod=ConceptMethod(getLabel=Unit()))
+    concept_response = ConceptResponse(label=Label(value=label))
+    request = TxRequest(runConceptMethod=run_concept_method)
+    return MockResponse(eq(request), TxResponse(conceptResponse=concept_response))
+
+
 def engine_responding_to_query() -> MockEngine:
-    return MockEngine(responses=[TxResponse(queryResult=TxResponse.QueryResult(value=json.dumps(expected_response)))])
+    mock_responses = [MockResponse(lambda req: req.execQuery.query.value == query, ITERATOR_RESPONSE)]
+    mock_responses += [MockResponse(eq(NEXT), TxResponse(queryResult=grpc_response)) for grpc_response in grpc_responses]
+    mock_responses.append(MockResponse(eq(NEXT), DONE))
+
+    mock_responses += [
+        _mock_label_response('a', 'concept'), _mock_label_response('b', 'entity'), _mock_label_response('c', 'resource')
+    ]
+
+    return MockEngine(responses=mock_responses)
 
 
 def engine_responding_with_nothing() -> MockEngine:
-    return MockEngine(responses=[])
+    return MockEngine()
 
 
 def engine_responding_bad_request() -> MockEngine:
@@ -151,37 +216,34 @@ class TestExecute(unittest.TestCase):
     def test_sends_open_request_with_keyspace(self):
         with engine_responding_to_query() as engine:
             self.client.execute(query)
-            expected_request = TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace)))
-            self.assertEqual(engine.requests[0], expected_request)
+            expected_request = TxRequest(open=Open(keyspace=Keyspace(value=keyspace), txType=Write))
+            engine.verify(expected_request)
 
     def test_sends_execute_query_request_with_parameters(self):
         with engine_responding_to_query() as engine:
             self.client.execute(query)
-            expected = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=False))
-            self.assertEqual(engine.requests[1], expected)
+            expected = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=None))
+            engine.verify(expected)
 
     def test_specifies_inference_on_when_requested(self):
         with engine_responding_to_query() as engine:
             self.client.execute(query, infer=True)
-            self.assertEqual(engine.requests[1].execQuery.setInfer, True)
-            self.assertEqual(engine.requests[1].execQuery.infer, True)
+            engine.verify(lambda req: req.execQuery.infer.value)
 
     def test_specifies_inference_off_when_requested(self):
         with engine_responding_to_query() as engine:
             self.client.execute(query, infer=False)
-            self.assertEqual(engine.requests[1].execQuery.setInfer, True)
-            self.assertEqual(engine.requests[1].execQuery.infer, False)
+            engine.verify(lambda req: not req.execQuery.infer.value)
 
     def test_sends_commit_request(self):
         with engine_responding_to_query() as engine:
             self.client.execute(query)
-            expected = TxRequest(commit=TxRequest.Commit())
-            self.assertEqual(engine.requests[2], expected)
+            expected = TxRequest(commit=Commit())
+            engine.verify(expected)
 
     def test_completes_request(self):
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_query():
             self.client.execute(query)
-            self.assertEqual(len(engine.requests), 3)
 
     def test_throws_with_invalid_query(self):
         throws_error = self.assertRaises(grakn.GraknError, msg=error_message)
@@ -208,15 +270,13 @@ class TestOpenTx(unittest.TestCase):
         with engine_responding_with_nothing() as engine, self.client.open():
             pass
 
-        expected_request = TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace)))
-        self.assertEqual(engine.requests[0], expected_request)
+        expected_request = TxRequest(open=Open(keyspace=Keyspace(value=keyspace), txType=Write))
+        engine.verify(expected_request)
 
     def test_completes_request(self):
-        with engine_responding_to_query() as engine, self.client.open() as tx:
+        with engine_responding_to_query(), self.client.open() as tx:
             tx.execute(query)
             tx.commit()
-
-        self.assertEqual(len(engine.requests), 3)
 
 
 class TestExecuteOnTx(unittest.TestCase):
@@ -238,22 +298,20 @@ class TestExecuteOnTx(unittest.TestCase):
         with engine_responding_to_query() as engine, self.client.open() as tx:
             tx.execute(query)
 
-        expected = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=False))
-        self.assertEqual(engine.requests[1], expected)
+        expected = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=None))
+        engine.verify(expected)
 
     def test_specifies_inference_on_when_requested(self):
         with engine_responding_to_query() as engine, self.client.open() as tx:
             tx.execute(query, infer=True)
 
-        self.assertEqual(engine.requests[1].execQuery.setInfer, True)
-        self.assertEqual(engine.requests[1].execQuery.infer, True)
+        engine.verify(lambda req: req.execQuery.infer.value)
 
     def test_specifies_inference_off_when_requested(self):
         with engine_responding_to_query() as engine, self.client.open() as tx:
             tx.execute(query, infer=False)
 
-        self.assertEqual(engine.requests[1].execQuery.setInfer, True)
-        self.assertEqual(engine.requests[1].execQuery.infer, False)
+        engine.verify(lambda req: not req.execQuery.infer.value)
 
 
 class TestCommit(unittest.TestCase):
@@ -272,5 +330,5 @@ class TestCommit(unittest.TestCase):
             tx.execute(query)
             tx.commit()
 
-        expected = TxRequest(commit=TxRequest.Commit())
-        self.assertEqual(engine.requests[2], expected)
+        expected = TxRequest(commit=Commit())
+        engine.verify(expected)

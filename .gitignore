@@ -1,5 +1,5 @@
 
 \.DS_Store
 .idea
-*/__pycache__
-grakn/grakn_pb2*.py
+**/__pycache__
+*_pb2*.py

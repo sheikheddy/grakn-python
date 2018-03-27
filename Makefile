@@ -3,7 +3,7 @@ init:
 	pipenv install --dev
 
 protobuf:
-	pipenv run python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/grakn/grakn.proto
+	pipenv run python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/*.proto
 
 build: protobuf
 

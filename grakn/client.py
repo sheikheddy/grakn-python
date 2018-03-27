@@ -1,12 +1,16 @@
 """Grakn python client."""
 import json
+import time
 from queue import Queue
 from typing import Any, Optional, Iterator, Union, TypeVar, Generic
 
 import grpc
 
-from grakn import grakn_pb2_grpc
-from grakn.grakn_pb2 import TxRequest, Keyspace, Query, TxResponse
+import grakn_pb2_grpc
+from concept_pb2 import Concept, ConceptId, ConceptMethod, Unit, RelationshipType, AttributeType, EntityType, Role, Rule
+from grakn_pb2 import TxRequest, Keyspace, Query, TxResponse, Open, TxType, Write, ExecQuery, Infer, QueryResult, \
+    Commit, RunConceptMethod
+from iterator_pb2 import Next
 
 _TIMEOUT = 60
 
@@ -63,15 +67,50 @@ class GraknTx:
 
         :raises: GraknError, GraknConnectionError
         """
-        set_infer = infer is not None
-        exec_query = TxRequest(execQuery=TxRequest.ExecQuery(query=Query(value=query), setInfer=set_infer, infer=infer))
-        self._requests.add(exec_query)
+        grpc_infer = Infer(value=infer) if infer is not None else None
+        request = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=grpc_infer))
+        self._requests.add(request)
+
+        iterator_id = self._next_response().iteratorId
+
+        query_results = []
+
+        while True:
+            next_request = TxRequest(next=Next(iteratorId=iterator_id))
+            self._requests.add(next_request)
+            response = self._next_response()
+
+            if response.HasField('done'):
+                break
+            else:
+                query_results.append(response.queryResult)
+
+        return [self._parse_result(query_result) for query_result in query_results]
+
+    def _parse_result(self, result: QueryResult):
+        if result.HasField('otherResult'):
+            return json.loads(result.otherResult)
+        else:
+            answer = result.answer.answer
+            return {var: self._parse_concept(answer[var]) for var in answer}
+
+    def _parse_concept(self, concept: Concept):
+        concept_dict = {'id': concept.id.value}
+
+        if concept.baseType in {RelationshipType, AttributeType, EntityType, Role, Rule}:
+            concept_dict['label'] = self._get_label(concept.id)
+
+        return concept_dict
+
+    def _get_label(self, cid: ConceptId):
+        request = TxRequest(runConceptMethod=RunConceptMethod(id=cid, conceptMethod=ConceptMethod(getLabel=Unit())))
+        self._requests.add(request)
         response = self._next_response()
-        return json.loads(response.queryResult.value)
+        return response.conceptResponse.label.value
 
     def commit(self):
         """Commit the transaction."""
-        self._requests.add(TxRequest(commit=TxRequest.Commit()))
+        self._requests.add(TxRequest(commit=Commit()))
 
 
 class GraknTxContext:
@@ -79,13 +118,16 @@ class GraknTxContext:
     def __init__(self, keyspace: str, stub: grakn_pb2_grpc.GraknStub):
         self._requests = BlockingIter()
 
-        self._requests.add(TxRequest(open=TxRequest.Open(keyspace=Keyspace(value=keyspace))))
-
         try:
             self._responses: Iterator[TxResponse] = stub.Tx(self._requests, timeout=_TIMEOUT)
-
         except grpc.RpcError as e:
             raise _convert_grpc_error(e)
+
+        request = TxRequest(open=Open(keyspace=Keyspace(value=keyspace), txType=Write))
+        self._requests.add(request)
+
+        # wait for response from "open"
+        _next_response(self._responses)
 
         self._tx = GraknTx(self._requests, self._responses)
 
@@ -106,7 +148,12 @@ class Client:
 
     def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE):
         channel = grpc.insecure_channel(uri)
+
         self._stub = grakn_pb2_grpc.GraknStub(channel)
+
+        # wait for channel to be ready before continuing
+        grpc.channel_ready_future(channel).result(timeout=_TIMEOUT)
+
         self.uri = uri
         self.keyspace = keyspace
 
@@ -140,8 +187,8 @@ class GraknError(Exception):
 def _convert_grpc_error(error: grpc.RpcError) -> Union[GraknError, ConnectionError]:
     """Convert an error message from gRPC into a GraknError or a ConnectionError"""
     assert isinstance(error, grpc.Call)
-    message = next((value for (key, value) in error.trailing_metadata() if key == 'message'), None)
-    if message is not None:
-        return GraknError(message)
+    error_type = next((value for (key, value) in error.trailing_metadata() if key == 'ErrorType'), None)
+    if error_type is not None:
+        return GraknError(error)
     else:
         return ConnectionError(error)
