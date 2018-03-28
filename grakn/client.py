@@ -15,9 +15,9 @@ _SCHEMA_CONCEPT_BASE_TYPES = {grpc_concept.MetaType, grpc_concept.RelationshipTy
                               grpc_concept.EntityType, grpc_concept.Role, grpc_concept.Rule}
 
 
-def _next_response(responses: Iterator[TxResponse], default: Optional[TxResponse] = None) -> TxResponse:
+def _next_response(responses: Iterator[TxResponse]) -> TxResponse:
     try:
-        return next(responses, default)
+        return next(responses)
     except grpc.RpcError as e:
         raise _convert_grpc_error(e)
 
@@ -114,7 +114,7 @@ class GraknTxContext:
         self._requests.close()
         # we ask for another response. This tells gRPC we are done
         try:
-            _next_response(self._responses, None)
+            _next_response(self._responses)
         except Exception as e:
             pass
 
@@ -171,8 +171,8 @@ class GraknError(Exception):
 def _convert_grpc_error(error: grpc.RpcError) -> Union[GraknError, ConnectionError]:
     """Convert an error message from gRPC into a GraknError or a ConnectionError"""
     assert isinstance(error, grpc.Call)
-    error_type = next((value for (key, value) in error.trailing_metadata() if key == 'ErrorType'), None)
+    error_type = next((value for (key, value) in error.trailing_metadata() if key == 'errortype'), None)
     if error_type is not None:
-        return GraknError(error)
+        return GraknError(error.details())
     else:
         return ConnectionError(error)
