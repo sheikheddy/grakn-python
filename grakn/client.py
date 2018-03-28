@@ -1,13 +1,13 @@
 """Grakn python client."""
 import json
-from typing import Any, Optional, Iterator, Union, Dict, List
+from typing import Any, Optional, Iterator, Dict, List
 
 import grpc
 
-import grakn_pb2_grpc
 import concept_pb2 as grpc_concept
-from grakn.blocking_iter import BlockingIter
 import grakn_pb2 as grpc_grakn
+import grakn_pb2_grpc
+from grakn.blocking_iter import BlockingIter
 from grakn_pb2 import TxRequest, TxResponse
 from iterator_pb2 import Next, IteratorId
 
