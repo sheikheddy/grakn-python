@@ -1,21 +1,18 @@
-import json
+import grpc
 import unittest
 from concurrent import futures
-from threading import Thread
-from typing import Iterator, List, Iterable, Dict, Callable, Optional, Union
+from typing import Iterator, List, Callable, Optional, Union
 
-import grpc
-from collections import defaultdict
-
+import concept_pb2
 import grakn
 import grakn_pb2_grpc
-from concept_pb2 import Concept, ConceptId, Unit, ConceptMethod, ConceptResponse, Label
-from grakn_pb2 import TxRequest, TxResponse, Keyspace, Query, Open, Write, QueryResult, Answer, Done, ExecQuery, Infer, \
+from concept_pb2 import Concept, ConceptId, Unit, ConceptMethod, ConceptResponse, Label, AttributeType, EntityType
+from grakn_pb2 import TxRequest, TxResponse, Keyspace, Query, Open, Write, QueryResult, Answer, Done, ExecQuery, \
     RunConceptMethod, Commit
 from grakn_pb2_grpc import GraknServicer
 from iterator_pb2 import Next, IteratorId
 
-ITERATOR_ID = iteratorId=IteratorId(id=5)
+ITERATOR_ID = IteratorId(id=5)
 ITERATOR_RESPONSE = TxResponse(iteratorId=ITERATOR_ID)
 DONE = TxResponse(done=Done())
 NEXT = TxRequest(next=Next(iteratorId=ITERATOR_ID))
@@ -29,13 +26,14 @@ expected_response = [
 ]
 
 grpc_answers = [
-    Answer(answer={'x': Concept(id=ConceptId(value='a'))}),
-    Answer(answer={'x': Concept(id=ConceptId(value='b'))}),
-    Answer(answer={'x': Concept(id=ConceptId(value='c'))})
+    Answer(answer={'x': Concept(id=ConceptId(value='a'), baseType=concept_pb2.MetaType)}),
+    Answer(answer={'x': Concept(id=ConceptId(value='b'), baseType=EntityType)}),
+    Answer(answer={'x': Concept(id=ConceptId(value='c'), baseType=AttributeType)})
 ]
 grpc_responses = [QueryResult(answer=grpc_answer) for grpc_answer in grpc_answers]
 
 error_message: str = 'sorry we changed the syntax again'
+error_type = 'GRAQL_SYNTAX_EXCEPTION'
 
 mock_uri: str = 'localhost:48556'
 mock_uri_to_no_server: str = 'localhost:9999'
@@ -47,13 +45,18 @@ def eq(tx_request: TxRequest):
 
 
 class MockResponse:
-    def __init__(self, request_matcher: Callable[[TxRequest], bool], response: TxResponse):
+    def __init__(self, request_matcher: Callable[[TxRequest], bool], response: TxResponse = None, error: str = None):
+        assert response is None or error is None
         self._request_matcher = request_matcher
         self._response = response
+        self._error = error
 
     def test(self, request: TxRequest) -> Optional[TxResponse]:
         if self._request_matcher(request):
-            return self._response
+            if self._response is not None:
+                return self._response
+            else:
+                return self._error
         else:
             return None
 
@@ -62,15 +65,9 @@ class MockGraknServicer(GraknServicer):
 
     def __init__(self):
         self.responses = []
-        self.error = None
         self.requests = None
 
     def Tx(self, request_iterator: Iterator[TxRequest], context: grpc.ServicerContext) -> Iterator[TxResponse]:
-        if self.error is not None:
-            context.set_code(grpc.StatusCode.UNKNOWN)
-            context.set_trailing_metadata([("message", self.error)])
-            return None
-
         self.requests = []
 
         for request in request_iterator:
@@ -82,9 +79,17 @@ class MockGraknServicer(GraknServicer):
                 if tx_response is not None:
                     print(f"RESPONSE: {tx_response}")
                     self.responses.remove(mock_response)
-                    yield tx_response
+
+                    if isinstance(tx_response, TxResponse):
+                        yield tx_response
+                    else:
+                        # return an error message
+                        context.set_trailing_metadata([("ErrorType", error_type)])
+                        context.abort(grpc.StatusCode.UNKNOWN, tx_response)
+
                     break
             else:
+                print(f"RESPONSE: {DONE}")
                 yield DONE
 
     def Delete(self, request, context):
@@ -99,14 +104,6 @@ class GrpcServer:
     @requests.setter
     def requests(self, value: List[TxRequest]):
         self._servicer.requests = value
-
-    @property
-    def error(self) -> str:
-        return self._servicer.error
-
-    @error.setter
-    def error(self, value: str):
-        self._servicer.error = value
 
     def __init__(self):
         servicer = MockGraknServicer()
@@ -127,32 +124,31 @@ SERVER = GrpcServer()
 class MockEngine:
 
     def verify(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]):
-        assert self._test(predicate), f"Expected {predicate}"
+        assert _test_tx_request(predicate), f"Expected {predicate}"
 
-    def _test(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]) -> bool:
-        if predicate in SERVER.requests:
-            return True
-        else:
-            try:
-                if any(predicate(r) for r in SERVER.requests):
-                    return True
-                else:
-                    return False
-            except TypeError:
-                return False
-
-    def __init__(self, *, responses: List[MockResponse] = None, error: str = None):
-        self._responses = responses if responses else []
-        self._error = error
+    def __init__(self, responses: List[MockResponse]):
+        self._responses = responses
 
     def __enter__(self):
         SERVER.requests = None
         SERVER._servicer.responses = self._responses
-        SERVER.error = self._error
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
+
+def _test_tx_request(predicate: Union[TxRequest, Callable[[TxRequest], bool]]) -> bool:
+    if predicate in SERVER.requests:
+        return True
+    else:
+        try:
+            if any(predicate(r) for r in SERVER.requests):
+                return True
+            else:
+                return False
+        except TypeError:
+            return False
 
 
 def _mock_label_response(cid: str, label: str) -> MockResponse:
@@ -171,15 +167,16 @@ def engine_responding_to_query() -> MockEngine:
         _mock_label_response('a', 'concept'), _mock_label_response('b', 'entity'), _mock_label_response('c', 'resource')
     ]
 
-    return MockEngine(responses=mock_responses)
+    return MockEngine(mock_responses)
 
 
 def engine_responding_with_nothing() -> MockEngine:
-    return MockEngine()
+    return MockEngine([])
 
 
 def engine_responding_bad_request() -> MockEngine:
-    return MockEngine(error=error_message)
+    error_response = MockResponse(lambda req: req.HasField('execQuery'), error=error_message)
+    return MockEngine([error_response])
 
 
 class TestClientConstructor(unittest.TestCase):
@@ -201,13 +198,8 @@ class TestClientConstructor(unittest.TestCase):
 
 class TestExecute(unittest.TestCase):
     def setUp(self):
-        self._original_timeout = grakn.client._TIMEOUT
-        grakn.client._TIMEOUT = 5
-        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
-        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
-
-    def tearDown(self):
-        grakn.client._TIMEOUT = self._original_timeout
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace, timeout=5)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace, timeout=5)
 
     def test_valid_query_returns_expected_response(self):
         with engine_responding_to_query():
@@ -258,13 +250,8 @@ class TestExecute(unittest.TestCase):
 class TestOpenTx(unittest.TestCase):
 
     def setUp(self):
-        self._original_timeout = grakn.client._TIMEOUT
-        grakn.client._TIMEOUT = 5
-        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
-        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
-
-    def tearDown(self):
-        grakn.client._TIMEOUT = self._original_timeout
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace, timeout=5)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace, timeout=5)
 
     def test_sends_open_request_with_keyspace(self):
         with engine_responding_with_nothing() as engine, self.client.open():
@@ -282,13 +269,8 @@ class TestOpenTx(unittest.TestCase):
 class TestExecuteOnTx(unittest.TestCase):
 
     def setUp(self):
-        self._original_timeout = grakn.client._TIMEOUT
-        grakn.client._TIMEOUT = 5
-        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
-        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
-
-    def tearDown(self):
-        grakn.client._TIMEOUT = self._original_timeout
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace, timeout=5)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace, timeout=5)
 
     def test_valid_query_returns_expected_response(self):
         with engine_responding_to_query() as engine, self.client.open() as tx:
@@ -317,13 +299,8 @@ class TestExecuteOnTx(unittest.TestCase):
 class TestCommit(unittest.TestCase):
 
     def setUp(self):
-        self._original_timeout = grakn.client._TIMEOUT
-        grakn.client._TIMEOUT = 5
-        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace)
-        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace)
-
-    def tearDown(self):
-        grakn.client._TIMEOUT = self._original_timeout
+        self.client = grakn.Client(uri=mock_uri, keyspace=keyspace, timeout=5)
+        self.client_to_no_server = grakn.Client(uri=mock_uri_to_no_server, keyspace=keyspace, timeout=5)
 
     def test_sends_commit_request(self):
         with engine_responding_to_query() as engine, self.client.open() as tx:
