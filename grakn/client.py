@@ -133,7 +133,7 @@ class Client:
         # wait for connection to be ready
         try:
             grpc.channel_ready_future(channel).result(timeout)
-        except TimeoutError as e:
+        except grpc.FutureTimeoutError as e:
             raise(ConnectionError(e))
 
         self._stub = grakn_pb2_grpc.GraknStub(channel)
