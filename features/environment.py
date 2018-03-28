@@ -9,6 +9,13 @@ env: str = './features/grakn-spec/env.sh'
 broken_connection: str = 'http://0.1.2.3:4567'
 
 
+def open_client(self: Context, uri: str = grakn.Client.DEFAULT_URI) -> None:
+    try:
+        self.client = grakn.Client(uri=uri, keyspace=new_keyspace(), timeout=5)
+    except (grakn.GraknError, ConnectionError) as e:
+        self.handle_error(e)
+
+
 def execute_query(self: Context, query: str):
     print(f">>> {query}")
     try:
@@ -19,8 +26,12 @@ def execute_query(self: Context, query: str):
     except (grakn.GraknError, ConnectionError) as e:
         self._response = None
         self._received_response = False
-        self._error = e
-        print(f"Error: {self._error}")
+        self._handle_error(e)
+
+
+def _handle_error(self: Context, error: Exception):
+    self._error = error
+    print(f"Error: {self._error}")
 
 
 def get_response(self: Context):
@@ -33,9 +44,11 @@ def get_error(self: Context):
     return self._error
 
 
+Context.open_client = open_client
 Context.execute_query = execute_query
 Context.get_response = get_response
 Context.get_error = get_error
+Context._handle_error = _handle_error
 
 
 def new_keyspace() -> str:
