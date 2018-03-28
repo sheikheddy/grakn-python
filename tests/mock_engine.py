@@ -1,5 +1,6 @@
+import json
 from concurrent import futures
-from typing import Callable, Optional, Iterator, List, Union
+from typing import Callable, Optional, Iterator, List, Union, Any
 
 import grpc
 
@@ -167,13 +168,9 @@ def _mock_label_response(cid: str, label: str) -> MockResponse:
     return MockResponse(eq(request), TxResponse(conceptResponse=concept_response))
 
 
-def engine_responding_to_query() -> MockEngine:
-
-    def is_exec_query(request: TxRequest) -> bool:
-        return request.execQuery.query.value == query
-
+def engine_responding_to_streaming_query() -> MockEngine:
     # respond with an iterator to execQuery request
-    mock_responses = [MockResponse(is_exec_query, ITERATOR_RESPONSE)]
+    mock_responses = [MockResponse(_is_exec_query, ITERATOR_RESPONSE)]
 
     # respond with a bunch of query results each time NEXT is called
     mock_responses += [MockResponse(eq(NEXT), TxResponse(queryResult=grpc_response)) for grpc_response in
@@ -190,6 +187,16 @@ def engine_responding_to_query() -> MockEngine:
     return MockEngine(mock_responses)
 
 
+def engine_responding_to_single_answer_query(answer: Any) -> MockEngine:
+    mock_responses = [MockResponse(_is_exec_query, TxResponse(queryResult=QueryResult(otherResult=json.dumps(answer))))]
+    return MockEngine(mock_responses)
+
+
+def engine_responding_to_void_query() -> MockEngine:
+    mock_responses = [MockResponse(_is_exec_query, DONE)]
+    return MockEngine(mock_responses)
+
+
 def engine_responding_with_nothing() -> MockEngine:
     return MockEngine([])
 
@@ -197,3 +204,7 @@ def engine_responding_with_nothing() -> MockEngine:
 def engine_responding_bad_request() -> MockEngine:
     error_response = MockResponse(lambda req: req.HasField('execQuery'), error=error_message)
     return MockEngine([error_response])
+
+
+def _is_exec_query(request: TxRequest) -> bool:
+    return request.execQuery.query.value == query

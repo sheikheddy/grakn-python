@@ -3,8 +3,9 @@ import unittest
 import grakn
 from grakn_pb2 import TxRequest, Keyspace, Query, Open, Write, ExecQuery, \
     Commit
-from tests.mock_engine import query, engine_responding_to_query, \
-    engine_responding_with_nothing, engine_responding_bad_request, error_message
+from tests.mock_engine import query, engine_responding_to_streaming_query, \
+    engine_responding_with_nothing, engine_responding_bad_request, error_message, engine_responding_to_void_query, \
+    engine_responding_to_single_answer_query
 
 expected_response = [
     {'x': {'id': 'a', 'label': 'concept'}},
@@ -19,39 +20,39 @@ keyspace: str = 'somesortofkeyspace'
 
 class TestExecute(unittest.TestCase):
     def test_valid_query_returns_expected_response(self) -> None:
-        with engine_responding_to_query():
+        with engine_responding_to_streaming_query():
             self.assertEqual(client().execute(query), expected_response)
 
     def test_sends_open_request_with_keyspace(self) -> None:
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_streaming_query() as engine:
             client().execute(query)
             expected_request = TxRequest(open=Open(keyspace=Keyspace(value=keyspace), txType=Write))
             engine.verify(expected_request)
 
     def test_sends_execute_query_request_with_parameters(self) -> None:
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_streaming_query() as engine:
             client().execute(query)
             expected = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=None))
             engine.verify(expected)
 
     def test_specifies_inference_on_when_requested(self) -> None:
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_streaming_query() as engine:
             client().execute(query, infer=True)
             engine.verify(lambda req: req.execQuery.infer.value)
 
     def test_specifies_inference_off_when_requested(self) -> None:
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_streaming_query() as engine:
             client().execute(query, infer=False)
             engine.verify(lambda req: not req.execQuery.infer.value)
 
     def test_sends_commit_request(self) -> None:
-        with engine_responding_to_query() as engine:
+        with engine_responding_to_streaming_query() as engine:
             client().execute(query)
             expected = TxRequest(commit=Commit())
             engine.verify(expected)
 
     def test_completes_request(self) -> None:
-        with engine_responding_to_query():
+        with engine_responding_to_streaming_query():
             client().execute(query)
 
     # TODO
@@ -76,31 +77,39 @@ class TestOpenTx(unittest.TestCase):
         engine.verify(expected_request)
 
     def test_completes_request(self) -> None:
-        with engine_responding_to_query(), client().open() as tx:
+        with engine_responding_to_streaming_query(), client().open() as tx:
             tx.execute(query)
             tx.commit()
 
 
 class TestExecuteOnTx(unittest.TestCase):
     def test_valid_query_returns_expected_response(self) -> None:
-        with engine_responding_to_query(), client().open() as tx:
+        with engine_responding_to_streaming_query(), client().open() as tx:
             self.assertEqual(tx.execute(query), expected_response)
 
+    def test_valid_query_with_one_result_returns_expected_response(self) -> None:
+        with engine_responding_to_single_answer_query(100), client().open() as tx:
+            self.assertEqual(tx.execute(query), 100)
+
+    def test_valid_query_with_no_results_returns_expected_response(self) -> None:
+        with engine_responding_to_void_query(), client().open() as tx:
+            self.assertEqual(tx.execute(query), None)
+
     def test_sends_execute_query_request_with_parameters(self) -> None:
-        with engine_responding_to_query() as engine, client().open() as tx:
+        with engine_responding_to_streaming_query() as engine, client().open() as tx:
             tx.execute(query)
 
         expected = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=None))
         engine.verify(expected)
 
     def test_specifies_inference_on_when_requested(self) -> None:
-        with engine_responding_to_query() as engine, client().open() as tx:
+        with engine_responding_to_streaming_query() as engine, client().open() as tx:
             tx.execute(query, infer=True)
 
         engine.verify(lambda req: req.execQuery.infer.value)
 
     def test_specifies_inference_off_when_requested(self) -> None:
-        with engine_responding_to_query() as engine, client().open() as tx:
+        with engine_responding_to_streaming_query() as engine, client().open() as tx:
             tx.execute(query, infer=False)
 
         engine.verify(lambda req: not req.execQuery.infer.value)
@@ -108,7 +117,7 @@ class TestExecuteOnTx(unittest.TestCase):
 
 class TestCommit(unittest.TestCase):
     def test_sends_commit_request(self) -> None:
-        with engine_responding_to_query() as engine, client().open() as tx:
+        with engine_responding_to_streaming_query() as engine, client().open() as tx:
             tx.execute(query)
             tx.commit()
 

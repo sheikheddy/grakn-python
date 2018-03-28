@@ -1,6 +1,6 @@
 """Grakn python client."""
 import json
-from typing import Any, Optional, Iterator, Union, Dict
+from typing import Any, Optional, Iterator, Union, Dict, List
 
 import grpc
 
@@ -9,7 +9,7 @@ import concept_pb2 as grpc_concept
 from grakn.blocking_iter import BlockingIter
 import grakn_pb2 as grpc_grakn
 from grakn_pb2 import TxRequest, TxResponse
-from iterator_pb2 import Next
+from iterator_pb2 import Next, IteratorId
 
 _SCHEMA_CONCEPT_BASE_TYPES = {grpc_concept.MetaType, grpc_concept.RelationshipType, grpc_concept.AttributeType,
                               grpc_concept.EntityType, grpc_concept.Role, grpc_concept.Rule}
@@ -45,8 +45,16 @@ class GraknTx:
         request = TxRequest(execQuery=grpc_grakn.ExecQuery(query=grpc_grakn.Query(value=query), infer=grpc_infer))
         self._requests.add(request)
 
-        iterator_id = self._next_response().iteratorId
+        response = self._next_response()
 
+        if response.HasField('done'):
+            return
+        elif response.HasField('queryResult'):
+            return self._parse_result(response.queryResult)
+        elif response.HasField('iteratorId'):
+            return self._collect_results(response.iteratorId)
+
+    def _collect_results(self, iterator_id: IteratorId) -> List[Any]:
         query_results = []
 
         while True:
