@@ -1,42 +1,16 @@
 """Grakn python client."""
 import json
-from queue import Queue
-from typing import Any, Optional, Iterator, Union, TypeVar, Generic, Dict
+from typing import Any, Optional, Iterator, Union, Dict
 
 import grpc
 
 import grakn_pb2_grpc
 from concept_pb2 import Concept, ConceptId, ConceptMethod, Unit, RelationshipType, AttributeType, EntityType, Role, \
     Rule, MetaType
+from grakn.blocking_iter import BlockingIter
 from grakn_pb2 import TxRequest, Keyspace, Query, TxResponse, Open, Write, ExecQuery, Infer, QueryResult, \
     Commit, RunConceptMethod
 from iterator_pb2 import Next
-
-T = TypeVar('T')
-
-
-class BlockingIter(Generic[T]):
-    def __init__(self) -> None:
-        self._queue: Queue[Optional[T]] = Queue()
-
-    def __iter__(self) -> Iterator[T]:
-        return self
-
-    def __next__(self) -> T:
-        elem = self._queue.get(block=True)
-        if elem is None:
-            raise StopIteration()
-        else:
-            return elem
-
-    def add(self, elem: T) -> None:
-        if elem is None:
-            raise ValueError()
-        else:
-            self._queue.put(elem)
-
-    def close(self) -> None:
-        self._queue.put(None)
 
 
 def _next_response(responses: Iterator[TxResponse], default: Optional[TxResponse] = None) -> TxResponse:
