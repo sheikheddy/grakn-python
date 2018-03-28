@@ -44,7 +44,7 @@ You can write to the knowledge base:
     ...     tx.execute('define person has name;')
     {}
     ...     tx.execute('insert $bob isa person, has name "Bob";')
-    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': ...}}]
+    [{'bob': {'id': ...}}]
     ...     tx.commit()
     ...
     >>>
@@ -57,7 +57,7 @@ Or read from it:
 
     >>> with client.open() as tx:
     ...     tx.execute('match $bob isa person, has name $name; get $name;')
-    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': ...}}]
+    [{'name': {'value': 'Bob', 'id': ...}}]
     ...
     >>>
 
