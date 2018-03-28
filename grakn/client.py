@@ -19,7 +19,7 @@ def _next_response(responses: Iterator[TxResponse]) -> TxResponse:
     try:
         return next(responses)
     except grpc.RpcError as e:
-        raise _convert_grpc_error(e)
+        _raise_grpc_error(e)
 
 
 class GraknTx:
@@ -97,7 +97,7 @@ class GraknTxContext:
         try:
             self._responses: Iterator[TxResponse] = stub.Tx(self._requests, timeout=timeout)
         except grpc.RpcError as e:
-            raise _convert_grpc_error(e)
+            _raise_grpc_error(e)
 
         request = TxRequest(open=grpc_grakn.Open(keyspace=grpc_grakn.Keyspace(value=keyspace), txType=grpc_grakn.Write))
         self._requests.add(request)
@@ -134,7 +134,7 @@ class Client:
         try:
             grpc.channel_ready_future(channel).result(timeout)
         except grpc.FutureTimeoutError as e:
-            raise(ConnectionError(e))
+            raise ConnectionError from e
 
         self._stub = grakn_pb2_grpc.GraknStub(channel)
         self._timeout = timeout
@@ -168,11 +168,11 @@ class GraknError(Exception):
     pass
 
 
-def _convert_grpc_error(error: grpc.RpcError) -> Union[GraknError, ConnectionError]:
+def _raise_grpc_error(error: grpc.RpcError) -> Any:
     """Convert an error message from gRPC into a GraknError or a ConnectionError"""
     assert isinstance(error, grpc.Call)
     error_type = next((value for (key, value) in error.trailing_metadata() if key == 'errortype'), None)
     if error_type is not None:
-        return GraknError(error.details())
+        raise GraknError(error.details()) from error
     else:
-        return ConnectionError(error)
+        raise ConnectionError from error
