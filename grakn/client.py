@@ -115,7 +115,7 @@ class GraknTxContext:
         # we ask for another response. This tells gRPC we are done
         try:
             _next_response(self._responses)
-        except Exception as e:
+        except StopIteration:
             pass
 
 
