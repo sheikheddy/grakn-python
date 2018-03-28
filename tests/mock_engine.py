@@ -38,6 +38,13 @@ def eq(tx_request: TxRequest):
 
 
 class MockResponse:
+    """
+    A mocked response to a matching request over gRPC.
+
+    >>> tx_response = TxResponse(done=Done())
+    >>> mock_response = MockResponse(lambda req: req.execQuery.query.value == "match $x isa person; get;", tx_response)
+    """
+
     def __init__(self, request_matcher: Callable[[TxRequest], bool], response: TxResponse = None, error: str = None):
         assert response is None or error is None
         self._request_matcher = request_matcher
@@ -55,22 +62,32 @@ class MockResponse:
 
 
 class MockGraknServicer(GraknServicer):
+    """A mock implementation of GraknServicer that has a set of mocked responses that can be set."""
+
     def __init__(self):
-        self.responses = []
-        self.requests = None
+        self._responses = []
+        self._requests = None
+
+    @property
+    def requests(self) -> List[TxRequest]:
+        return list(self._requests)
+
+    def init(self, responses: List[TxResponse]):
+        self._responses = list(responses)
+        self._requests = None
 
     def Tx(self, request_iterator: Iterator[TxRequest], context: grpc.ServicerContext) -> Iterator[TxResponse]:
-        self.requests = []
+        self._requests = []
 
         for request in request_iterator:
             print(f"REQUEST: {request}")
-            self.requests.append(request)
+            self._requests.append(request)
 
-            for mock_response in self.responses:
+            for mock_response in self._responses:
                 tx_response = mock_response.test(request)
                 if tx_response is not None:
                     print(f"RESPONSE: {tx_response}")
-                    self.responses.remove(mock_response)
+                    self._responses.remove(mock_response)
 
                     if isinstance(tx_response, TxResponse):
                         yield tx_response
@@ -89,13 +106,11 @@ class MockGraknServicer(GraknServicer):
 
 
 class GrpcServer:
+    """A gRPCs server containing a MockGraknServicer"""
+
     @property
     def requests(self) -> List[TxRequest]:
-        return self._servicer.requests
-
-    @requests.setter
-    def requests(self, value: List[TxRequest]):
-        self._servicer.requests = value
+        return list(self._servicer.requests)
 
     def __init__(self):
         servicer = MockGraknServicer()
@@ -109,37 +124,41 @@ class GrpcServer:
         self._servicer = servicer
         self._server = server
 
+    def init(self, responses: List[MockResponse]):
+        self._servicer.init(responses)
 
-SERVER = GrpcServer()
+
+_SERVER = GrpcServer()
 
 
 class MockEngine:
     def verify(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]):
-        assert _test_tx_request(predicate), f"Expected {predicate}"
+        """Assert that a TxRequest has been sent matching the given predicate"""
+        assert self._test_tx_request(predicate), f"Expected {predicate}"
+
+    def _test_tx_request(self, predicate: Union[TxRequest, Callable[[TxRequest], bool]]) -> bool:
+        if predicate in self._server.requests:
+            return True
+        else:
+            try:
+                if any(predicate(r) for r in self._server.requests):
+                    return True
+                else:
+                    return False
+            except TypeError:
+                return False
 
     def __init__(self, responses: List[MockResponse]):
+        # TODO: secretly static thing is probably bad
+        self._server = _SERVER
         self._responses = responses
 
     def __enter__(self):
-        SERVER.requests = None
-        SERVER._servicer.responses = self._responses
+        self._server.init(self._responses)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
-
-
-def _test_tx_request(predicate: Union[TxRequest, Callable[[TxRequest], bool]]) -> bool:
-    if predicate in SERVER.requests:
-        return True
-    else:
-        try:
-            if any(predicate(r) for r in SERVER.requests):
-                return True
-            else:
-                return False
-        except TypeError:
-            return False
 
 
 def _mock_label_response(cid: str, label: str) -> MockResponse:
@@ -150,11 +169,21 @@ def _mock_label_response(cid: str, label: str) -> MockResponse:
 
 
 def engine_responding_to_query() -> MockEngine:
-    mock_responses = [MockResponse(lambda req: req.execQuery.query.value == query, ITERATOR_RESPONSE)]
+
+    def is_exec_query(request: TxRequest) -> bool:
+        return request.execQuery.query.value == query
+
+    # respond with an iterator to execQuery request
+    mock_responses = [MockResponse(is_exec_query, ITERATOR_RESPONSE)]
+
+    # respond with a bunch of query results each time NEXT is called
     mock_responses += [MockResponse(eq(NEXT), TxResponse(queryResult=grpc_response)) for grpc_response in
                        grpc_responses]
+
+    # the last time NEXT is called, return DONE
     mock_responses.append(MockResponse(eq(NEXT), DONE))
 
+    # return the correct labels for each concept
     mock_responses += [
         _mock_label_response('a', 'concept'), _mock_label_response('b', 'entity'), _mock_label_response('c', 'resource')
     ]
