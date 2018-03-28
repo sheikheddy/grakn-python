@@ -129,6 +129,13 @@ class Client:
     def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE, *,
                  timeout: int = DEFAULT_TIMEOUT) -> None:
         channel = grpc.insecure_channel(uri)
+
+        # wait for connection to be ready
+        try:
+            grpc.channel_ready_future(channel).result(timeout)
+        except TimeoutError as e:
+            raise(ConnectionError(e))
+
         self._stub = grakn_pb2_grpc.GraknStub(channel)
         self._timeout = timeout
         self.uri = uri

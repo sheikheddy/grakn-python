@@ -127,8 +127,8 @@ class GrpcServer:
     def init(self, responses: List[MockResponse]):
         self._servicer.init(responses)
 
-
-_SERVER = GrpcServer()
+    def stop(self):
+        self._server.stop(False)
 
 
 class MockEngine:
@@ -149,8 +149,7 @@ class MockEngine:
                 return False
 
     def __init__(self, responses: List[MockResponse]):
-        # TODO: secretly static thing is probably bad
-        self._server = _SERVER
+        self._server = GrpcServer()
         self._responses = responses
 
     def __enter__(self):
@@ -158,7 +157,7 @@ class MockEngine:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        self._server.stop()
 
 
 def _mock_label_response(cid: str, label: str) -> MockResponse:
