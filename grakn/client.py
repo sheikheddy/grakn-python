@@ -5,12 +5,14 @@ from typing import Any, Optional, Iterator, Union, Dict
 import grpc
 
 import grakn_pb2_grpc
-from concept_pb2 import Concept, ConceptId, ConceptMethod, Unit, RelationshipType, AttributeType, EntityType, Role, \
-    Rule, MetaType
+import concept_pb2 as grpc_concept
 from grakn.blocking_iter import BlockingIter
-from grakn_pb2 import TxRequest, Keyspace, Query, TxResponse, Open, Write, ExecQuery, Infer, QueryResult, \
-    Commit, RunConceptMethod
+import grakn_pb2 as grpc_grakn
+from grakn_pb2 import TxRequest, TxResponse
 from iterator_pb2 import Next
+
+_SCHEMA_CONCEPT_BASE_TYPES = {grpc_concept.MetaType, grpc_concept.RelationshipType, grpc_concept.AttributeType,
+                              grpc_concept.EntityType, grpc_concept.Role, grpc_concept.Rule}
 
 
 def _next_response(responses: Iterator[TxResponse], default: Optional[TxResponse] = None) -> TxResponse:
@@ -39,8 +41,8 @@ class GraknTx:
 
         :raises: GraknError, GraknConnectionError
         """
-        grpc_infer = Infer(value=infer) if infer is not None else None
-        request = TxRequest(execQuery=ExecQuery(query=Query(value=query), infer=grpc_infer))
+        grpc_infer = grpc_grakn.Infer(value=infer) if infer is not None else None
+        request = TxRequest(execQuery=grpc_grakn.ExecQuery(query=grpc_grakn.Query(value=query), infer=grpc_infer))
         self._requests.add(request)
 
         iterator_id = self._next_response().iteratorId
@@ -59,34 +61,36 @@ class GraknTx:
 
         return [self._parse_result(query_result) for query_result in query_results]
 
-    def _parse_result(self, result: QueryResult) -> Any:
+    def _parse_result(self, result: grpc_grakn.QueryResult) -> Any:
         if result.HasField('otherResult'):
             return json.loads(result.otherResult)
         else:
             answer = result.answer.answer
             return {var: self._parse_concept(answer[var]) for var in answer}
 
-    def _parse_concept(self, concept: Concept) -> Dict:
+    def _parse_concept(self, concept: grpc_concept.Concept) -> Dict:
         concept_dict = {'id': concept.id.value}
 
-        if concept.baseType in {MetaType, RelationshipType, AttributeType, EntityType, Role, Rule}:
+        if concept.baseType in _SCHEMA_CONCEPT_BASE_TYPES:
             concept_dict['label'] = self._get_label(concept.id)
 
         return concept_dict
 
-    def _get_label(self, cid: ConceptId) -> str:
-        request = TxRequest(runConceptMethod=RunConceptMethod(id=cid, conceptMethod=ConceptMethod(getLabel=Unit())))
+    def _get_label(self, cid: grpc_concept.ConceptId) -> str:
+        concept_method = grpc_concept.ConceptMethod(getLabel=grpc_concept.Unit())
+        request = TxRequest(runConceptMethod=grpc_grakn.RunConceptMethod(id=cid, conceptMethod=concept_method))
         self._requests.add(request)
         response = self._next_response()
         return response.conceptResponse.label.value
 
     def commit(self) -> None:
         """Commit the transaction."""
-        self._requests.add(TxRequest(commit=Commit()))
+        self._requests.add(TxRequest(commit=grpc_grakn.Commit()))
 
 
 class GraknTxContext:
     """Contains a GraknTx. This should be used in a `with` statement in order to retrieve the GraknTx"""
+
     def __init__(self, keyspace: str, stub: grakn_pb2_grpc.GraknStub, timeout) -> None:
         self._requests: BlockingIter = BlockingIter()
 
@@ -95,7 +99,7 @@ class GraknTxContext:
         except grpc.RpcError as e:
             raise _convert_grpc_error(e)
 
-        request = TxRequest(open=Open(keyspace=Keyspace(value=keyspace), txType=Write))
+        request = TxRequest(open=grpc_grakn.Open(keyspace=grpc_grakn.Keyspace(value=keyspace), txType=grpc_grakn.Write))
         self._requests.add(request)
 
         # wait for response from "open"
@@ -122,7 +126,8 @@ class Client:
     DEFAULT_KEYSPACE: str = 'grakn'
     DEFAULT_TIMEOUT = 60
 
-    def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE, *, timeout: int = DEFAULT_TIMEOUT) -> None:
+    def __init__(self, uri: str = DEFAULT_URI, keyspace: str = DEFAULT_KEYSPACE, *,
+                 timeout: int = DEFAULT_TIMEOUT) -> None:
         channel = grpc.insecure_channel(uri)
         self._stub = grakn_pb2_grpc.GraknStub(channel)
         self._timeout = timeout
