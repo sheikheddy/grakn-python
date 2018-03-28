@@ -9,7 +9,7 @@ from tests.mock_engine import query, engine_responding_to_streaming_query, \
 
 expected_response = [
     {'x': {'id': 'a', 'label': 'concept'}},
-    {'x': {'id': 'b', 'label': 'entity'}},
+    {'x': {'id': 'b', 'value': 100}},
     {'x': {'id': 'c', 'label': 'resource'}}
 ]
 

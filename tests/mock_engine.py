@@ -6,7 +6,7 @@ import grpc
 
 import concept_pb2
 import grakn_pb2_grpc
-from concept_pb2 import Concept, ConceptId, EntityType, AttributeType, ConceptMethod, Unit, ConceptResponse, Label
+from concept_pb2 import Concept, ConceptId, ConceptMethod, Unit, ConceptResponse, Label
 from grakn_pb2 import TxResponse, Done, TxRequest, Answer, QueryResult, RunConceptMethod
 from grakn_pb2_grpc import GraknServicer
 from iterator_pb2 import IteratorId, Next
@@ -25,8 +25,8 @@ query: str = 'match $x sub concept; limit 3;'
 
 grpc_answers = [
     Answer(answer={'x': Concept(id=ConceptId(value='a'), baseType=concept_pb2.MetaType)}),
-    Answer(answer={'x': Concept(id=ConceptId(value='b'), baseType=EntityType)}),
-    Answer(answer={'x': Concept(id=ConceptId(value='c'), baseType=AttributeType)})
+    Answer(answer={'x': Concept(id=ConceptId(value='b'), baseType=concept_pb2.Attribute)}),
+    Answer(answer={'x': Concept(id=ConceptId(value='c'), baseType=concept_pb2.AttributeType)})
 ]
 
 grpc_responses = [QueryResult(answer=grpc_answer) for grpc_answer in grpc_answers]
@@ -168,6 +168,13 @@ def _mock_label_response(cid: str, label: str) -> MockResponse:
     return MockResponse(eq(request), TxResponse(conceptResponse=concept_response))
 
 
+def _mock_value_response(cid: str, value: concept_pb2.AttributeValue) -> MockResponse:
+    run_concept_method = RunConceptMethod(id=ConceptId(value=cid), conceptMethod=ConceptMethod(getValue=Unit()))
+    concept_response = ConceptResponse(attributeValue=value)
+    request = TxRequest(runConceptMethod=run_concept_method)
+    return MockResponse(eq(request), TxResponse(conceptResponse=concept_response))
+
+
 def engine_responding_to_streaming_query() -> MockEngine:
     # respond with an iterator to execQuery request
     mock_responses = [MockResponse(_is_exec_query, ITERATOR_RESPONSE)]
@@ -179,9 +186,11 @@ def engine_responding_to_streaming_query() -> MockEngine:
     # the last time NEXT is called, return DONE
     mock_responses.append(MockResponse(eq(NEXT), DONE))
 
-    # return the correct labels for each concept
+    # return the correct labels and other properties for each concept
     mock_responses += [
-        _mock_label_response('a', 'concept'), _mock_label_response('b', 'entity'), _mock_label_response('c', 'resource')
+        _mock_label_response('a', 'concept'),
+        _mock_value_response('b', concept_pb2.AttributeValue(long=100)),
+        _mock_label_response('c', 'resource')
     ]
 
     return MockEngine(mock_responses)

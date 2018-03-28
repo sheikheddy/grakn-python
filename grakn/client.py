@@ -82,6 +82,9 @@ class GraknTx:
         if concept.baseType in _SCHEMA_CONCEPT_BASE_TYPES:
             concept_dict['label'] = self._get_label(concept.id)
 
+        if concept.baseType == grpc_concept.Attribute:
+            concept_dict['value'] = self._get_value(concept.id)
+
         return concept_dict
 
     def _get_label(self, cid: grpc_concept.ConceptId) -> str:
@@ -90,6 +93,29 @@ class GraknTx:
         self._requests.add(request)
         response = self._next_response()
         return response.conceptResponse.label.value
+
+    def _get_value(self, cid: grpc_concept.ConceptId) -> Any:
+        concept_method = grpc_concept.ConceptMethod(getValue=grpc_concept.Unit())
+        request = TxRequest(runConceptMethod=grpc_grakn.RunConceptMethod(id=cid, conceptMethod=concept_method))
+        self._requests.add(request)
+        response = self._next_response()
+        return self._convert_value(response.conceptResponse.attributeValue)
+
+    def _convert_value(self, value: grpc_concept.AttributeValue) -> Any:
+        if value.HasField('string'):
+            return value.string
+        elif value.HasField('boolean'):
+            return value.boolean
+        elif value.HasField('integer'):
+            return value.integer
+        elif value.HasField('long'):
+            return value.long
+        elif value.HasField('float'):
+            return value.float
+        elif value.HasField('double'):
+            return value.double
+        elif value.HasField('date'):
+            return value.date
 
     def commit(self) -> None:
         """Commit the transaction."""
