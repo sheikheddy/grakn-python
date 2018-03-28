@@ -17,23 +17,6 @@ mock_uri_to_no_server: str = 'localhost:9999'
 keyspace: str = 'somesortofkeyspace'
 
 
-class TestClientConstructor(unittest.TestCase):
-    def test_accepts_no_arguments(self) -> None:
-        client = grakn.Client()
-        self.assertEqual(client.keyspace, 'grakn')
-        self.assertEqual(client.uri, 'localhost:48555')
-
-    def test_accepts_two_arguments(self) -> None:
-        client = grakn.Client('www.google.com', 'mykeyspace')
-        self.assertEqual(client.uri, 'www.google.com')
-        self.assertEqual(client.keyspace, 'mykeyspace')
-
-    def test_accepts_keyword_arguments(self) -> None:
-        client = grakn.Client(keyspace='mykeyspace', uri='www.google.com')
-        self.assertEqual(client.uri, 'www.google.com')
-        self.assertEqual(client.keyspace, 'mykeyspace')
-
-
 class TestExecute(unittest.TestCase):
     def test_valid_query_returns_expected_response(self) -> None:
         with engine_responding_to_query():
