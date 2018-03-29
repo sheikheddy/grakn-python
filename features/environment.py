@@ -17,6 +17,10 @@ def open_client(self: Context, uri: str = grakn.Client.DEFAULT_URI) -> None:
 
 
 def execute_query(self: Context, query: str):
+    # don't execute the query if an error has occurred
+    if self._error is not None:
+        print(f"An error occurred, so skipping query: f{self._error}")
+
     print(f">>> {query}")
     try:
         self._response = self.client.execute(query, **self.params)
@@ -24,23 +28,24 @@ def execute_query(self: Context, query: str):
         self._error = None
         print(self._response)
     except (grakn.GraknError, ConnectionError) as e:
-        self._response = None
-        self._received_response = False
         self._handle_error(e)
 
 
 def _handle_error(self: Context, error: Exception):
+    self._response = None
+    self._received_response = False
     self._error = error
     print(f"Error: {self._error}")
 
 
 def get_response(self: Context):
-    assert self._received_response, self._error
+    assert self._error is not None, f"Expected response but got error: {self._error}"
+    assert self._received_response, "No response received"
     return self._response
 
 
 def get_error(self: Context):
-    assert not self._received_response, self._response
+    assert self._response is None, f"Expected error but got response: {self._response}"
     return self._error
 
 
