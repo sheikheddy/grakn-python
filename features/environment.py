@@ -13,7 +13,7 @@ def open_client(self: Context, uri: str = grakn.Client.DEFAULT_URI) -> None:
     try:
         self.client = grakn.Client(uri=uri, keyspace=new_keyspace(), timeout=5)
     except (grakn.GraknError, ConnectionError) as e:
-        self.handle_error(e)
+        self._handle_error(e)
 
 
 def execute_query(self: Context, query: str):
