@@ -120,6 +120,7 @@ class GraknTx:
     def commit(self) -> None:
         """Commit the transaction."""
         self._requests.add(TxRequest(commit=grpc_grakn.Commit()))
+        self._next_response()
 
 
 class GraknTxContext:
