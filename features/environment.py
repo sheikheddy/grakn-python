@@ -10,16 +10,17 @@ broken_connection: str = 'http://0.1.2.3:4567'
 
 
 def open_client(self: Context, uri: str = grakn.Client.DEFAULT_URI) -> None:
+    self.client = None
     try:
-        self.client = grakn.Client(uri=uri, keyspace=new_keyspace(), timeout=5)
+        self.client = grakn.Client(uri=uri, keyspace=new_keyspace(), timeout=30)
     except (grakn.GraknError, ConnectionError) as e:
         self._handle_error(e)
 
 
 def execute_query(self: Context, query: str):
-    # don't execute the query if an error has occurred
-    if self._error is not None:
-        print(f"An error occurred, so skipping query: f{self._error}")
+    if self.client is None:
+        print("No client, so skipping query")
+        return
 
     print(f">>> {query}")
     try:
@@ -39,7 +40,9 @@ def _handle_error(self: Context, error: Exception):
 
 
 def get_response(self: Context):
-    assert self._error is not None, f"Expected response but got error: {self._error}"
+    if self._error is not None:
+        raise self._error
+
     assert self._received_response, "No response received"
     return self._response
 
