@@ -1,8 +1,6 @@
 import subprocess
-from sys import stdout
 
 from behave.runner import Context
-from requests import ConnectionError
 
 import grakn
 
@@ -11,21 +9,54 @@ env: str = './features/grakn-spec/env.sh'
 broken_connection: str = 'http://0.1.2.3:4567'
 
 
+def open_client(self: Context, uri: str = grakn.Client.DEFAULT_URI) -> None:
+    self.client = None
+    try:
+        self.client = grakn.Client(uri=uri, keyspace=new_keyspace(), timeout=30)
+    except (grakn.GraknError, ConnectionError) as e:
+        self._handle_error(e)
+
+
 def execute_query(self: Context, query: str):
+    if self.client is None:
+        print("No client, so skipping query")
+        return
+
     print(f">>> {query}")
     try:
-        self.response = self.client.execute(query, **self.params)
-        self.received_response = True
-        self.error = None
-        print(self.response)
+        self._response = self.client.execute(query, **self.params)
+        self._received_response = True
+        self._error = None
+        print(self._response)
     except (grakn.GraknError, ConnectionError) as e:
-        self.response = None
-        self.received_response = False
-        self.error = e
-        print(f"Error: {self.error}")
+        self._handle_error(e)
 
 
+def _handle_error(self: Context, error: Exception):
+    self._response = None
+    self._received_response = False
+    self._error = error
+    print(f"Error: {self._error}")
+
+
+def get_response(self: Context):
+    if self._error is not None:
+        raise self._error
+
+    assert self._received_response, "No response received"
+    return self._response
+
+
+def get_error(self: Context):
+    assert self._response is None, f"Expected error but got response: {self._response}"
+    return self._error
+
+
+Context.open_client = open_client
 Context.execute_query = execute_query
+Context.get_response = get_response
+Context.get_error = get_error
+Context._handle_error = _handle_error
 
 
 def new_keyspace() -> str:

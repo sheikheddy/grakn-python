@@ -14,5 +14,5 @@ setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable'
     ],
-    install_requires=['requests']
+    install_requires=['grpcio']
 )

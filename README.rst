@@ -30,20 +30,24 @@ Now you can connect to a knowledge base:
 
 .. code-block:: python
 
-    >>> client = grakn.Client(uri='http://localhost:4567', keyspace='mykb')
+    >>> client = grakn.Client(uri='localhost:48555', keyspace='mykb')
 
 You can write to the knowledge base:
 
 .. code-block:: python
 
-    >>> client.execute('define person sub entity;')
+    >>> with client.open() as tx:
+    ...     tx.execute('define person sub entity;')
     {}
-    >>> client.execute('define name sub attribute, datatype string;')
+    ...     tx.execute('define name sub attribute, datatype string;')
     {}
-    >>> client.execute('define person has name;')
+    ...     tx.execute('define person has name;')
     {}
-    >>> client.execute('insert $bob isa person, has name "Bob";')
-    [{'bob': {'type': {'label': 'person', '@id': '/kb/mykb/type/person'}, 'id': ...}}]
+    ...     tx.execute('insert $bob isa person, has name "Bob";')
+    [{'bob': {'id': ...}}]
+    ...     tx.commit()
+    ...
+    >>>
 
 .. TODO: update this output when insert query output changes
 
@@ -51,8 +55,11 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> resp = client.execute('match $bob isa person, has name $name; get $name;')
-    [{'name': {'type': {'label': 'name', '@id': '/kb/mykb/type/name'}, 'value': 'Bob', 'id': ...}}]
+    >>> with client.open() as tx:
+    ...     tx.execute('match $bob isa person, has name $name; get $name;')
+    [{'name': {'value': 'Bob', 'id': ...}}]
+    ...
+    >>>
 
 .. TODO: reference docs
 

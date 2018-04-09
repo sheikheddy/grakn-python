@@ -2,8 +2,13 @@ init:
 	pip install pipenv
 	pipenv install --dev
 
-test:
+protobuf:
+	pipenv run python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/*.proto
+
+build: protobuf
+
+test: build
 	pipenv run nosetests
 
-accept:
+accept: build
 	pipenv run behave features/grakn-spec/features --tags=-skip -D graknversion=$(GRAKNVERSION)
