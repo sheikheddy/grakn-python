@@ -53,7 +53,7 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> tx.execute('match $bob isa person, has name $name; get $name;')
+    >>> client.execute('match $bob isa person, has name $name; get $name;')
     [{'name': {'value': 'Bob', 'id': ...}}]
     ...
     >>>
