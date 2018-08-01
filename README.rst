@@ -36,17 +36,15 @@ You can write to the knowledge base:
 
 .. code-block:: python
 
-    >>> with client.open() as tx:
-    ...     tx.execute('define person sub entity;')
+    
+    >>> client.execute('define person sub entity;')
     {}
-    ...     tx.execute('define name sub attribute, datatype string;')
+    >>> client.execute('define name sub attribute, datatype string;')
     {}
-    ...     tx.execute('define person has name;')
+    >>> client.execute('define person has name;')
     {}
-    ...     tx.execute('insert $bob isa person, has name "Bob";')
+    >>> client.execute('insert $bob isa person, has name "Bob";')
     [{'bob': {'id': ...}}]
-    ...     tx.commit()
-    ...
     >>>
 
 .. TODO: update this output when insert query output changes
@@ -55,8 +53,7 @@ Or read from it:
 
 .. code-block:: python
 
-    >>> with client.open() as tx:
-    ...     tx.execute('match $bob isa person, has name $name; get $name;')
+    >>> tx.execute('match $bob isa person, has name $name; get $name;')
     [{'name': {'value': 'Bob', 'id': ...}}]
     ...
     >>>
